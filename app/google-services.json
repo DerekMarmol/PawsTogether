@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "157503906840",
+    "project_id": "pawstogether-c8694",
+    "storage_bucket": "pawstogether-c8694.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157503906840:android:3b8376d9861276ef990f6d",
+        "android_client_info": {
+          "package_name": "com.example.pawstogether"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcLWJIKKQQsOrgq3oS3IlP7KDM3Ky8rcc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
