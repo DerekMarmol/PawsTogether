@@ -1,6 +1,5 @@
 package com.example.pawstogether.ui.theme.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,18 +10,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.pawstogether.R
 
 @Composable
 fun LoginScreen(
     onEmailLogin: (String, String) -> Unit,
-    onGoogleLogin: () -> Unit,
-    onFacebookLogin: () -> Unit
+    onNavigateToRegister: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -85,45 +81,8 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            text = "O inicia sesión con:",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            OutlinedButton(
-                onClick = { onGoogleLogin() },
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF4285F4))
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.google_icon),
-                    contentDescription = "Google",
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Google", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-
-            OutlinedButton(
-                onClick = { onFacebookLogin() },
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1877F2))
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.facebook_icon),
-                    contentDescription = "Facebook",
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Facebook", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
+        TextButton(onClick = { onNavigateToRegister() }) {
+            Text("Crear una cuenta", color = MaterialTheme.colorScheme.primary)
         }
 
         if (error.isNotEmpty()) {
