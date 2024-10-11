@@ -17,152 +17,217 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.pawstogether.model.PetPost
 import com.example.pawstogether.model.Comment
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen() {
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val navController = rememberNavController()
+
     var petPosts by remember { mutableStateOf(listOf<PetPost>()) }
-    var newPostUri by remember { mutableStateOf<Uri?>(null) }
-    var newPostDescription by remember { mutableStateOf("") }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
-    var showMenu by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("PawsTogether") },
-                navigationIcon = {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
+    LaunchedEffect(Unit) {
+        try {
+            val db = FirebaseFirestore.getInstance()
+            val postsSnapshot = db.collection("posts").get().await()
+            petPosts = postsSnapshot.documents.mapNotNull { doc ->
+                doc.toObject(PetPost::class.java)?.copy(id = doc.id)
+            }
+        } catch (e: Exception) {
+            Log.e("HomeScreen", "Error al cargar posts", e)
         }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            item {
-                NewPostCard(
-                    newPostUri = newPostUri,
-                    newPostDescription = newPostDescription,
-                    selectedFileName = selectedFileName,
-                    onMediaSelected = { uri, fileName ->
-                        newPostUri = uri
-                        selectedFileName = fileName
+    }
+
+    suspend fun saveNewPost(post: PetPost) {
+        try {
+            val db = FirebaseFirestore.getInstance()
+            val docRef = db.collection("posts").add(post).await()
+            // Actualiza el ID del post con el ID generado por Firestore
+            db.collection("posts").document(docRef.id).update("id", docRef.id).await()
+        } catch (e: Exception) {
+            Log.e("Firestore", "Error al guardar el post", e)
+        }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Spacer(Modifier.height(12.dp))
+                NavigationDrawerItem(
+                    label = { Text("Perfil") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("profile")
+                        scope.launch { drawerState.close() }
+                    }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Configuración") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("settings")
+                        scope.launch { drawerState.close() }
+                    }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Cerrar sesión") },
+                    selected = false,
+                    onClick = {
+                        // Implementar lógica de cierre de sesión
+                        scope.launch { drawerState.close() }
+                    }
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("PawsTogether") },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
                     },
-                    onDescriptionChanged = { newPostDescription = it },
-                    onPostSubmit = { uri, description, context -> // <- Aceptar contexto
-                        if (uri != null && description.isNotEmpty()) {
-                            val newUri = uri.toString()
-                            val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
-                            val newPost = PetPost(
-                                id = UUID.randomUUID().toString(),
-                                userId = "currentUserId",
-                                mediaUrl = newUri,
-                                description = description,
-                                isVideo = isVideo,
-                                likes = 0,
-                                likedBy = emptyList()
-                            )
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            }
+        ) { paddingValues ->
+            NavHost(navController = navController, startDestination = "home") {
+                composable("home") {
+                    HomeContent(
+                        paddingValues = paddingValues,
+                        petPosts = petPosts,
+                        onNewPost = { newPost ->
+                            // Guardar nueva publicación en Firebase
+                            val db = FirebaseFirestore.getInstance()
+                            db.collection("posts").add(newPost)
                             petPosts = listOf(newPost) + petPosts
-                            newPostUri = null
-                            newPostDescription = ""
-                            selectedFileName = null
-                            Log.d("HomeScreen", "Nueva publicación añadida: ${newPost.id}")
-                        } else {
-                            Log.e("HomeScreen", "Error al publicar: URI o descripción vacía")
-                        }
-                    }
-                )
-            }
-
-            items(petPosts) { post ->
-                PetPostItem(
-                    post = post,
-                    onPostInteraction = { action ->
-                        when (action) {
-                            is PostAction.Like -> {
-                                petPosts = petPosts.map {
-                                    if (it.id == action.postId) {
-                                        it.copy(
-                                            likes = it.likes + 1,
-                                            likedBy = it.likedBy + "currentUserId"
-                                        )
-                                    } else it
+                        },
+                        onPostInteraction = { action ->
+                            // Actualizar Firebase y la lista local
+                            val db = FirebaseFirestore.getInstance()
+                            when (action) {
+                                is PostAction.Like -> {
+                                    petPosts = petPosts.map {
+                                        if (it.id == action.postId) {
+                                            val updatedPost = it.copy(
+                                                likes = it.likes + 1,
+                                                likedBy = it.likedBy + "currentUserId"
+                                            )
+                                            db.collection("posts").document(it.id).set(updatedPost)
+                                            updatedPost
+                                        } else it
+                                    }
                                 }
-                            }
-                            is PostAction.Unlike -> {
-                                petPosts = petPosts.map {
-                                    if (it.id == action.postId) {
-                                        it.copy(
-                                            likes = it.likes - 1,
-                                            likedBy = it.likedBy - "currentUserId"
-                                        )
-                                    } else it
+                                is PostAction.Unlike -> {
+                                    petPosts = petPosts.map {
+                                        if (it.id == action.postId) {
+                                            val updatedPost = it.copy(
+                                                likes = it.likes - 1,
+                                                likedBy = it.likedBy - "currentUserId"
+                                            )
+                                            db.collection("posts").document(it.id).set(updatedPost)
+                                            updatedPost
+                                        } else it
+                                    }
                                 }
-                            }
-                            is PostAction.Comment -> {
-                                petPosts = petPosts.map {
-                                    if (it.id == action.postId) {
-                                        val newComment = Comment(userId = "currentUserId", text = action.text)
-                                        it.copy(comments = it.comments + newComment)
-                                    } else it
+                                is PostAction.Comment -> {
+                                    petPosts = petPosts.map {
+                                        if (it.id == action.postId) {
+                                            val newComment = Comment(userId = "currentUserId", text = action.text)
+                                            val updatedPost = it.copy(comments = it.comments + newComment)
+                                            db.collection("posts").document(it.id).set(updatedPost)
+                                            updatedPost
+                                        } else it
+                                    }
                                 }
                             }
                         }
-                    }
-                )
-            }
-        }
-
-        if (showMenu) {
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Perfil") },
-                    onClick = { /* Navegar a perfil */ }
-                )
-                DropdownMenuItem(
-                    text = { Text("Configuración") },
-                    onClick = { /* Navegar a configuración */ }
-                )
-                DropdownMenuItem(
-                    text = { Text("Cerrar sesión") },
-                    onClick = { /* Lógica para cerrar sesión */ }
-                )
+                    )
+                }
+                composable("profile") {
+                    // Implementar pantalla de perfil
+                    Text("Pantalla de Perfil")
+                }
+                composable("settings") {
+                    // Implementar pantalla de configuración
+                    Text("Pantalla de Configuración")
+                }
             }
         }
     }
 }
 
+@Composable
+fun HomeContent(
+    paddingValues: PaddingValues,
+    petPosts: List<PetPost>,
+    onNewPost: (PetPost) -> Unit,
+    onPostInteraction: (PostAction) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        item {
+            NewPostCard(
+                onPostSubmit = { uri, description, context ->
+                    if (uri != null && description.isNotEmpty()) {
+                        val newUri = uri.toString()
+                        val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
+                        val newPost = PetPost(
+                            id = UUID.randomUUID().toString(),
+                            userId = "currentUserId",
+                            mediaUrl = newUri,
+                            description = description,
+                            isVideo = isVideo,
+                            likes = 0,
+                            likedBy = emptyList()
+                        )
+                        onNewPost(newPost)
+                    }
+                }
+            )
+        }
+
+        items(petPosts) { post ->
+            PetPostItem(
+                post = post,
+                onPostInteraction = onPostInteraction
+            )
+        }
+    }
+}
 
 @Composable
 fun NewPostCard(
-    newPostUri: Uri?,
-    newPostDescription: String,
-    selectedFileName: String?,
-    onMediaSelected: (Uri, String) -> Unit,
-    onDescriptionChanged: (String) -> Unit,
-    onPostSubmit: (Uri?, String, android.content.Context) -> Unit // <- Pasar contexto
+    onPostSubmit: (Uri?, String, android.content.Context) -> Unit
 ) {
-    val context = LocalContext.current // <- Obtener el contexto aquí
+    var newPostUri by remember { mutableStateOf<Uri?>(null) }
+    var newPostDescription by remember { mutableStateOf("") }
+    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier
@@ -174,7 +239,12 @@ fun NewPostCard(
             Text("Crear Publicación", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            MediaPicker(onMediaSelected)
+            MediaPicker(
+                onMediaSelected = { uri, fileName ->
+                    newPostUri = uri
+                    selectedFileName = fileName
+                }
+            )
 
             selectedFileName?.let {
                 Text("Archivo seleccionado: $it", style = MaterialTheme.typography.bodySmall)
@@ -188,13 +258,18 @@ fun NewPostCard(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = newPostDescription,
-                onValueChange = onDescriptionChanged,
+                onValueChange = { newPostDescription = it },
                 label = { Text("Descripción") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
             Button(
-                onClick = { onPostSubmit(newPostUri, newPostDescription, context) }, // <- Pasar contexto aquí
+                onClick = {
+                    onPostSubmit(newPostUri, newPostDescription, context)
+                    newPostUri = null
+                    newPostDescription = ""
+                    selectedFileName = null
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Publicar")
