@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.android)
     id("com.android.application")
-    id("com.google.gms.google-services") // Aquí está correctamente aplicado
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.firebase.storage.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

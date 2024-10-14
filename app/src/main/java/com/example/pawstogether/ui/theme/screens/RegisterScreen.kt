@@ -19,6 +19,7 @@ fun RegisterScreen(
     onRegister: (String, String, String, String, String) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
+    var userId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var petExperience by remember { mutableStateOf("") }
@@ -47,6 +48,18 @@ fun RegisterScreen(
             value = email,
             onValueChange = { email = it },
             label = { Text("Correo electrónico") },
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(1.dp, RectangleShape, true)
+                .padding(horizontal = 8.dp)
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedTextField(
+            value = userId,
+            onValueChange = {userId = it},
+            label = { Text("Nombre de usuario")},
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -83,45 +96,6 @@ fun RegisterScreen(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = petExperience,
-            onValueChange = { petExperience = it },
-            label = { Text("Experiencia con Mascotas (por ejemplo, tipos y cantidad de mascotas)") },
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(1.dp, RectangleShape, true)
-                .padding(horizontal = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = interests,
-            onValueChange = { interests = it },
-            label = { Text("Intereses (adopción, cuidado temporal, búsqueda de mascotas perdidas)") },
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(1.dp, RectangleShape, true)
-                .padding(horizontal = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = services,
-            onValueChange = { services = it },
-            label = { Text("Servicios que puedes ofrecer o solicitar") },
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(1.dp, RectangleShape, true)
-                .padding(horizontal = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = {

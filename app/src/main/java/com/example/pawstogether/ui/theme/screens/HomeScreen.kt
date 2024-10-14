@@ -26,7 +26,10 @@ import com.example.pawstogether.model.Comment
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.PlayerView
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -37,31 +40,33 @@ fun HomeScreen() {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val navController = rememberNavController()
+    var userId by remember { mutableStateOf("") }
 
     var petPosts by remember { mutableStateOf(listOf<PetPost>()) }
+    val db = FirebaseFirestore.getInstance()
 
     LaunchedEffect(Unit) {
         try {
-            val db = FirebaseFirestore.getInstance()
-            val postsSnapshot = db.collection("posts").get().await()
-            petPosts = postsSnapshot.documents.mapNotNull { doc ->
-                doc.toObject(PetPost::class.java)?.copy(id = doc.id)
-            }
+            db.collection("posts")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(50)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        Log.e("HomeScreen", "Error al escuchar cambios en posts", e)
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null) {
+                        petPosts = snapshot.documents.mapNotNull { doc ->
+                            doc.toObject(PetPost::class.java)?.copy(id = doc.id)
+                        }
+                    }
+                }
         } catch (e: Exception) {
-            Log.e("HomeScreen", "Error al cargar posts", e)
+            Log.e("HomeScreen", "Error al configurar el listener de posts", e)
         }
     }
 
-    suspend fun saveNewPost(post: PetPost) {
-        try {
-            val db = FirebaseFirestore.getInstance()
-            val docRef = db.collection("posts").add(post).await()
-            // Actualiza el ID del post con el ID generado por Firestore
-            db.collection("posts").document(docRef.id).update("id", docRef.id).await()
-        } catch (e: Exception) {
-            Log.e("Firestore", "Error al guardar el post", e)
-        }
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -117,48 +122,43 @@ fun HomeScreen() {
                         paddingValues = paddingValues,
                         petPosts = petPosts,
                         onNewPost = { newPost ->
-                            // Guardar nueva publicación en Firebase
-                            val db = FirebaseFirestore.getInstance()
-                            db.collection("posts").add(newPost)
-                            petPosts = listOf(newPost) + petPosts
+                            scope.launch {
+                                try {
+                                    // Agregar timestamp al nuevo post
+                                    val postWithTimestamp = newPost.copy(timestamp = System.currentTimeMillis())
+                                    val docRef = db.collection("posts").add(postWithTimestamp).await()
+                                    // No necesitas actualizar manualmente la lista aquí
+                                } catch (e: Exception) {
+                                    Log.e("HomeScreen", "Error al guardar el nuevo post", e)
+                                }
+                            }
                         },
                         onPostInteraction = { action ->
-                            // Actualizar Firebase y la lista local
-                            val db = FirebaseFirestore.getInstance()
-                            when (action) {
-                                is PostAction.Like -> {
-                                    petPosts = petPosts.map {
-                                        if (it.id == action.postId) {
-                                            val updatedPost = it.copy(
-                                                likes = it.likes + 1,
-                                                likedBy = it.likedBy + "currentUserId"
-                                            )
-                                            db.collection("posts").document(it.id).set(updatedPost)
-                                            updatedPost
-                                        } else it
-                                    }
-                                }
-                                is PostAction.Unlike -> {
-                                    petPosts = petPosts.map {
-                                        if (it.id == action.postId) {
-                                            val updatedPost = it.copy(
-                                                likes = it.likes - 1,
-                                                likedBy = it.likedBy - "currentUserId"
-                                            )
-                                            db.collection("posts").document(it.id).set(updatedPost)
-                                            updatedPost
-                                        } else it
-                                    }
-                                }
-                                is PostAction.Comment -> {
-                                    petPosts = petPosts.map {
-                                        if (it.id == action.postId) {
+                            scope.launch {
+                                try {
+                                    when (action) {
+                                        is PostAction.Like -> {
+                                            db.collection("posts").document(action.postId)
+                                                .update(
+                                                    "likes", FieldValue.increment(1),
+                                                    "likedBy", FieldValue.arrayUnion("currentUserId")
+                                                )
+                                        }
+                                        is PostAction.Unlike -> {
+                                            db.collection("posts").document(action.postId)
+                                                .update(
+                                                    "likes", FieldValue.increment(-1),
+                                                    "likedBy", FieldValue.arrayRemove("currentUserId")
+                                                )
+                                        }
+                                        is PostAction.Comment -> {
                                             val newComment = Comment(userId = "currentUserId", text = action.text)
-                                            val updatedPost = it.copy(comments = it.comments + newComment)
-                                            db.collection("posts").document(it.id).set(updatedPost)
-                                            updatedPost
-                                        } else it
+                                            db.collection("posts").document(action.postId)
+                                                .update("comments", FieldValue.arrayUnion(newComment))
+                                        }
                                     }
+                                } catch (e: Exception) {
+                                    Log.e("HomeScreen", "Error al actualizar el post", e)
                                 }
                             }
                         }
@@ -192,22 +192,7 @@ fun HomeContent(
     ) {
         item {
             NewPostCard(
-                onPostSubmit = { uri, description, context ->
-                    if (uri != null && description.isNotEmpty()) {
-                        val newUri = uri.toString()
-                        val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
-                        val newPost = PetPost(
-                            id = UUID.randomUUID().toString(),
-                            userId = "currentUserId",
-                            mediaUrl = newUri,
-                            description = description,
-                            isVideo = isVideo,
-                            likes = 0,
-                            likedBy = emptyList()
-                        )
-                        onNewPost(newPost)
-                    }
-                }
+                onNewPost = onNewPost
             )
         }
 
@@ -222,12 +207,14 @@ fun HomeContent(
 
 @Composable
 fun NewPostCard(
-    onPostSubmit: (Uri?, String, android.content.Context) -> Unit
+    onNewPost: (PetPost) -> Unit
 ) {
     var newPostUri by remember { mutableStateOf<Uri?>(null) }
     var newPostDescription by remember { mutableStateOf("") }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Card(
         modifier = Modifier
@@ -265,16 +252,63 @@ fun NewPostCard(
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
-                    onPostSubmit(newPostUri, newPostDescription, context)
-                    newPostUri = null
-                    newPostDescription = ""
-                    selectedFileName = null
+                    scope.launch {
+                        isLoading = true
+                        newPostUri?.let { uri ->
+                            try {
+                                val storage = FirebaseStorage.getInstance()
+                                val fileName = "media/${UUID.randomUUID()}"
+                                val storageRef = storage.reference.child(fileName)
+                                val uploadTask = storageRef.putFile(uri).await()
+                                val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
+
+                                val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
+                                val newPost = PetPost(
+                                    id = UUID.randomUUID().toString(),
+                                    userId = "currentUserId", // Reemplaza esto con el ID real del usuario
+                                    mediaUrl = downloadUrl,
+                                    description = newPostDescription,
+                                    isVideo = isVideo,
+                                    likes = 0,
+                                    likedBy = emptyList(),
+                                    comments = emptyList(),
+                                    timestamp = System.currentTimeMillis()
+                                )
+                                saveNewPost(newPost)
+                                // No necesitas llamar a onNewPost aquí, ya que el listener se encargará de actualizar la lista
+                                // Limpiar los campos después de publicar
+                                newPostUri = null
+                                newPostDescription = ""
+                                selectedFileName = null
+                            } catch (e: Exception) {
+                                Log.e("NewPostCard", "Error al subir el archivo", e)
+                                // Mostrar un mensaje de error al usuario
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             ) {
-                Text("Publicar")
+                if (isLoading) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("Publicar")
+                }
             }
         }
+    }
+}
+
+
+suspend fun saveNewPost(post: PetPost) {
+    try {
+        val db = FirebaseFirestore.getInstance()
+        db.collection("posts").add(post).await()
+    } catch (e: Exception) {
+        Log.e("Firestore", "Error al guardar el post", e)
     }
 }
 
