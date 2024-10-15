@@ -40,7 +40,7 @@ fun ReportsScreen() {
             .limit(50)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    Log.e("ReportsScreen", "Error al escuchar cambios en reports", e)
+                    Log.e("ReportsScreen", "Error al realizar cambios en reportes", e)
                     return@addSnapshotListener
                 }
 
