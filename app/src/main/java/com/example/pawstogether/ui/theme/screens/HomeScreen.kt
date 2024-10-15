@@ -33,6 +33,8 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import com.example.pawstogether.ui.theme.screens.ReportsScreen
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +83,16 @@ fun HomeScreen() {
                         scope.launch { drawerState.close() }
                     }
                 )
+
+                NavigationDrawerItem(
+                    label = { Text("Reportes de Mascotas") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("reports")
+                        scope.launch { drawerState.close() }
+                    }
+                )
+
                 NavigationDrawerItem(
                     label = { Text("Configuración") },
                     selected = false,
@@ -167,6 +179,9 @@ fun HomeScreen() {
                 composable("profile") {
                     // Implementar pantalla de perfil
                     Text("Pantalla de Perfil")
+                }
+                composable("reports") {
+                    ReportsScreen()
                 }
                 composable("settings") {
                     // Implementar pantalla de configuración
