@@ -9,7 +9,10 @@ data class PetPost(
     val likes: Int = 0,
     val likedBy: List<String> = emptyList(),
     val comments: List<Comment> = emptyList(),
-    val timestamp: Long = 0 // Nuevo campo
+    val timestamp: Long = 0,
+    val location: String = "",
+    val date: String = "",
+    val reportType: String = ""
 )
 
 data class Comment(
