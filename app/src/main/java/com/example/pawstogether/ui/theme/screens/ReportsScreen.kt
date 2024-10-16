@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.example.pawstogether.model.PetPost
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
@@ -31,10 +32,16 @@ fun ReportsScreen() {
     var reportType by remember { mutableStateOf("Perdida") }
     var reportUri by remember { mutableStateOf<Uri?>(null) }
     val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
     val scope = rememberCoroutineScope()
     var petReports by remember { mutableStateOf(listOf<PetPost>()) }
+    var currentUserId by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        auth.currentUser?.let { user ->
+            currentUserId = user.uid
+        }
+
         db.collection("reports")
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .limit(50)
@@ -162,7 +169,8 @@ fun ReportsScreen() {
             items(petReports) { report ->
                 PetPostItem(
                     post = report,
-                    onPostInteraction = { }
+                    currentUserId = currentUserId,
+                    onPostInteraction = { /* No hacemos nada con las interacciones en la pantalla de reportes */ }
                 )
             }
         }

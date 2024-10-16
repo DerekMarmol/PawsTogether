@@ -13,13 +13,13 @@ import com.example.pawstogether.ui.theme.PawsTogetherTheme
 import com.example.pawstogether.ui.theme.screens.HomeScreen
 import com.example.pawstogether.ui.theme.screens.LoginScreen
 import com.example.pawstogether.ui.theme.screens.RegisterScreen
+import com.example.pawstogether.ui.theme.screens.ReportsScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
-    private lateinit var navController: NavHostController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PawsTogetherTheme {
-                navController = rememberNavController()
+                val navController = rememberNavController()
                 AppNavigator(navController)
             }
         }
@@ -39,24 +39,27 @@ class MainActivity : ComponentActivity() {
         NavHost(navController, startDestination = "login") {
             composable("login") {
                 LoginScreen(
-                    onEmailLogin = { email, password -> signInWithEmail(email, password) },
+                    onEmailLogin = { email, password -> signInWithEmail(email, password, navController) },
                     onNavigateToRegister = { navController.navigate("register") }
                 )
             }
             composable("register") {
                 RegisterScreen(
                     onRegister = { email, password, petExperience, interests, services ->
-                        registerWithEmail(email, password, petExperience, interests, services)
+                        registerWithEmail(email, password, petExperience, interests, services, navController)
                     }
                 )
             }
             composable("home") {
                 HomeScreen()
             }
+            composable("reports"){
+                ReportsScreen()
+            }
         }
     }
 
-    private fun signInWithEmail(email: String, password: String) {
+    private fun signInWithEmail(email: String, password: String, navController: NavHostController) {
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
@@ -70,13 +73,12 @@ class MainActivity : ComponentActivity() {
             }
     }
 
-    private fun registerWithEmail(email: String, password: String, petExperience: String, interests: String, services: String) {
+    private fun registerWithEmail(email: String, password: String, petExperience: String, interests: String, services: String, navController: NavHostController) {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
-                        // Guardar información adicional en Firestore
                         val userInfo = hashMapOf(
                             "email" to email,
                             "petExperience" to petExperience,
