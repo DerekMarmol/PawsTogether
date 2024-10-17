@@ -123,6 +123,14 @@ fun HomeScreen() {
                         scope.launch { drawerState.close() }
                     }
                 )
+                NavigationDrawerItem(
+                    label = { Text("Adopción") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adoption")
+                        scope.launch { drawerState.close() }
+                    }
+                )
                 Spacer(Modifier.height(12.dp))
                 NavigationDrawerItem(
                     label = { Text("Configuración") },
@@ -218,6 +226,9 @@ fun HomeScreen() {
                 }
                 composable("reports") {
                     ReportsScreen()
+                }
+                composable("adoption") {
+                    AdoptionScreen()
                 }
                 composable("settings") {
                     // Implementar pantalla de configuración
