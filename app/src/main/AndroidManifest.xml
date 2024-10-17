@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permisos necesarios para el uso de internet -->
+    <!-- Permisos necesarios -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -20,12 +20,6 @@
         android:theme="@style/Theme.PawsTogether"
         tools:targetApi="31">
 
-        <!-- Meta-data de Facebook -->
-        <meta-data
-            android:name="com.facebook.sdk.ApplicationId"
-            android:value="@string/facebook_app_id"/>
-
-        <!-- com.example.pawstogether.MainActivity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -11,7 +11,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Report
+import androidx.compose.material.icons.filled.Reviews
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -42,11 +48,13 @@ import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    val navController = rememberNavController()
+fun HomeScreen(navController: NavHostController) {
+    // Elimina esta línea:
+    // val navController = rememberNavController()
+
     var currentUserId by remember { mutableStateOf("") }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
     var currentUserName by remember { mutableStateOf("") }
 
     var petPosts by remember { mutableStateOf(listOf<PetPost>()) }
@@ -83,13 +91,13 @@ fun HomeScreen() {
         }
     }
 
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
                 Spacer(Modifier.height(12.dp))
                 NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("Perfil") },
                     selected = false,
                     onClick = {
@@ -104,7 +112,7 @@ fun HomeScreen() {
                     selected = false,
                     onClick = {
                         navController.navigate("home") {
-                            popUpTo(navController.graph.findStartDestination().id) {
+                            popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
                             launchSingleTop = true
@@ -123,7 +131,9 @@ fun HomeScreen() {
                         scope.launch { drawerState.close() }
                     }
                 )
+                Spacer(Modifier.height(12.dp))
                 NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Pets, contentDescription = "Adoption") },
                     label = { Text("Adopción") },
                     selected = false,
                     onClick = {
@@ -133,6 +143,7 @@ fun HomeScreen() {
                 )
                 Spacer(Modifier.height(12.dp))
                 NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
                     label = { Text("Configuración") },
                     selected = false,
                     onClick = {
@@ -140,12 +151,15 @@ fun HomeScreen() {
                         scope.launch { drawerState.close() }
                     }
                 )
-                Divider(Modifier.height(6.dp))
+                Spacer(Modifier.height(12.dp))
                 NavigationDrawerItem(
-                    label = { Text("Cerrar sesión") },
+                    icon = { Icon(Icons.Default.RateReview, contentDescription = "Reviews") },
+                    label = { Text("Reseñas") },
                     selected = false,
                     onClick = {
-                        // Implementar lógica de cierre de sesión
+                        val userId = "someUserId"  // Asegúrate de tener un valor correcto aquí
+                        val serviceType = "someServiceType"  // Lo mismo para el tipo de servicio
+                        navController.navigate("rating/$userId/$serviceType")
                         scope.launch { drawerState.close() }
                     }
                 )
@@ -168,73 +182,55 @@ fun HomeScreen() {
                 )
             }
         ) { paddingValues ->
-            NavHost(navController = navController, startDestination = "home") {
-                composable("home") {
-                    HomeContent(
-                        paddingValues = paddingValues,
-                        petPosts = petPosts,
-                        currentUserId = currentUserId,
-                        currentUserName = currentUserName,
-                        onNewPost = { newPost ->
-                            scope.launch {
-                                try {
-                                    val postWithTimestamp = newPost.copy(
-                                        timestamp = System.currentTimeMillis(),
-                                        userId = currentUserId,
-                                        userName = currentUserName
-                                    )
-                                    val docRef = db.collection("posts").add(postWithTimestamp).await()
-                                } catch (e: Exception) {
-                                    Log.e("HomeScreen", "Error al guardar el nuevo post", e)
-                                }
-                            }
-                        },
-                        onPostInteraction = { action ->
-                            scope.launch {
-                                try {
-                                    when (action) {
-                                        is PostAction.Like -> {
-                                            db.collection("posts").document(action.postId)
-                                                .update(
-                                                    "likes", FieldValue.increment(1),
-                                                    "likedBy", FieldValue.arrayUnion(currentUserId)
-                                                )
-                                        }
-                                        is PostAction.Unlike -> {
-                                            db.collection("posts").document(action.postId)
-                                                .update(
-                                                    "likes", FieldValue.increment(-1),
-                                                    "likedBy", FieldValue.arrayRemove(currentUserId)
-                                                )
-                                        }
-                                        is PostAction.Comment -> {
-                                            val newComment = Comment(userId = currentUserId, userName = currentUserName, text = action.text)
-                                            db.collection("posts").document(action.postId)
-                                                .update("comments", FieldValue.arrayUnion(newComment))
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("HomeScreen", "Error al actualizar el post", e)
-                                }
-                            }
+            HomeContent(
+                paddingValues = paddingValues,
+                petPosts = petPosts,
+                currentUserId = currentUserId,
+                currentUserName = currentUserName,
+                onNewPost = { newPost ->
+                    scope.launch {
+                        try {
+                            val postWithTimestamp = newPost.copy(
+                                timestamp = System.currentTimeMillis(),
+                                userId = currentUserId,
+                                userName = currentUserName
+                            )
+                            val docRef = db.collection("posts").add(postWithTimestamp).await()
+                        } catch (e: Exception) {
+                            Log.e("HomeScreen", "Error al guardar el nuevo post", e)
                         }
-                    )
+                    }
+                },
+                onPostInteraction = { action ->
+                    scope.launch {
+                        try {
+                            when (action) {
+                                is PostAction.Like -> {
+                                    db.collection("posts").document(action.postId)
+                                        .update(
+                                            "likes", FieldValue.increment(1),
+                                            "likedBy", FieldValue.arrayUnion(currentUserId)
+                                        )
+                                }
+                                is PostAction.Unlike -> {
+                                    db.collection("posts").document(action.postId)
+                                        .update(
+                                            "likes", FieldValue.increment(-1),
+                                            "likedBy", FieldValue.arrayRemove(currentUserId)
+                                        )
+                                }
+                                is PostAction.Comment -> {
+                                    val newComment = Comment(userId = currentUserId, userName = currentUserName, text = action.text)
+                                    db.collection("posts").document(action.postId)
+                                        .update("comments", FieldValue.arrayUnion(newComment))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("HomeScreen", "Error al actualizar el post", e)
+                        }
+                    }
                 }
-                composable("profile") {
-                    // Implementar pantalla de perfil
-                    Text("Pantalla de Perfil")
-                }
-                composable("reports") {
-                    ReportsScreen()
-                }
-                composable("adoption") {
-                    AdoptionScreen()
-                }
-                composable("settings") {
-                    // Implementar pantalla de configuración
-                    Text("Pantalla de Configuración")
-                }
-            }
+            )
         }
     }
 }

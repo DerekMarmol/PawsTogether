@@ -4,14 +4,23 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.OptIn
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import com.example.pawstogether.model.UserRating
 import com.example.pawstogether.ui.theme.PawsTogetherTheme
+import com.example.pawstogether.ui.theme.screens.AdoptionScreen
 import com.example.pawstogether.ui.theme.screens.HomeScreen
 import com.example.pawstogether.ui.theme.screens.LoginScreen
+import com.example.pawstogether.ui.theme.screens.RatingScreen
 import com.example.pawstogether.ui.theme.screens.RegisterScreen
 import com.example.pawstogether.ui.theme.screens.ReportsScreen
 import com.google.firebase.auth.FirebaseAuth
@@ -21,6 +30,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
 
+    @kotlin.OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         auth = FirebaseAuth.getInstance()
@@ -34,6 +44,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @ExperimentalMaterial3Api
     @Composable
     fun AppNavigator(navController: NavHostController) {
         NavHost(navController, startDestination = "login") {
@@ -51,12 +62,76 @@ class MainActivity : ComponentActivity() {
                 )
             }
             composable("home") {
-                HomeScreen()
+                HomeScreen(navController = navController)
             }
-            composable("reports"){
+            composable("reports") {
                 ReportsScreen()
             }
+            composable("adoption") {
+                AdoptionScreen()
+            }
+            composable(
+                route = "rating/{userId}/{serviceType}",
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType },
+                    navArgument("serviceType") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                val serviceType = backStackEntry.arguments?.getString("serviceType") ?: ""
+                RatingScreen(
+                    toUserId = userId,
+                    serviceType = serviceType,
+                    onRatingSubmit = { rating ->
+                        // Aquí guardaremos la reseña en Firebase
+                        saveRatingToFirebase(rating) {
+                            // Una vez guardada, navegamos de vuelta
+                            navController.popBackStack()
+                        }
+                    },
+                    onClose = {
+                        navController.popBackStack()
+                    }
+                )
+            }
         }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun saveRatingToFirebase(rating: UserRating, onComplete: () -> Unit) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection("ratings")
+            .add(rating)
+            .addOnSuccessListener {
+                // Actualizar el promedio de calificaciones del usuario calificado
+                updateUserRating(rating.toUserId)
+                onComplete()
+            }
+            .addOnFailureListener { e ->
+                Log.e("MainActivity", "Error al guardar la reseña", e)
+                onComplete()
+            }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun updateUserRating(userId: String) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection("ratings")
+            .whereEqualTo("toUserId", userId)
+            .get()
+            .addOnSuccessListener { documents ->
+                val totalStars = documents.sumOf { it.getLong("stars")?.toInt() ?: 0 }
+                val averageRating = if (documents.size() > 0) totalStars.toFloat() / documents.size() else 0f
+
+                db.collection("users").document(userId)
+                    .update("averageRating", averageRating)
+                    .addOnFailureListener { e ->
+                        Log.e("MainActivity", "Error al actualizar el promedio de calificaciones", e)
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e("MainActivity", "Error al calcular el promedio de calificaciones", e)
+            }
     }
 
     private fun signInWithEmail(email: String, password: String, navController: NavHostController) {
