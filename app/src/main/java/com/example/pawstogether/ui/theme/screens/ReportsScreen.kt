@@ -170,7 +170,7 @@ fun ReportsScreen() {
                 PetPostItem(
                     post = report,
                     currentUserId = currentUserId,
-                    onPostInteraction = { /* No hacemos nada con las interacciones en la pantalla de reportes */ }
+                    onPostInteraction = {  }
                 )
             }
         }

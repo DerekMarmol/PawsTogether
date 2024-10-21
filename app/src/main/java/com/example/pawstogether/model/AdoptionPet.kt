@@ -7,6 +7,6 @@ data class AdoptionPet(
     val description: String = "",
     val medicalHistoryUrl: String? = null,
     val imageUrl: String = "",
-    val adoptionRequests: List<String> = listOf(), // IDs de usuarios interesados
+    val adoptionRequests: List<String> = listOf(),
     val timestamp: Long = System.currentTimeMillis()
 )

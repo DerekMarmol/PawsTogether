@@ -133,7 +133,7 @@ fun AddAdoptionForm(onSubmit: (AdoptionPet) -> Unit) {
 
             Button(
                 onClick = {
-                    medicalHistoryLauncher.launch("*/*") // Puedes especificar "application/pdf" si solo deseas permitir PDFs
+                    medicalHistoryLauncher.launch("*/*")
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

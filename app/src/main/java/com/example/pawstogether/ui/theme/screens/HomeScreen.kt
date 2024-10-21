@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
@@ -138,6 +139,16 @@ fun HomeScreen(navController: NavHostController) {
                     selected = false,
                     onClick = {
                         navController.navigate("adoption")
+                        scope.launch { drawerState.close() }
+                    }
+                )
+                
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.Favorite, contentDescription = "Services") },
+                    label = { Text("Ofrecer Servicios") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("services")
                         scope.launch { drawerState.close() }
                     }
                 )
