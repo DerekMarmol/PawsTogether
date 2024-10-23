@@ -87,13 +87,17 @@ class MainActivity : ComponentActivity() {
             ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 val serviceType = backStackEntry.arguments?.getString("serviceType") ?: ""
+
+                // Aquí deberías obtener el `userName` desde alguna fuente, por ejemplo, desde Firestore o pasándolo desde la pantalla anterior.
+                // Si lo obtienes de Firestore, tendrías que realizar una consulta asincrónica.
+                val userName = "NombreUsuario" // Aquí deberías sustituirlo con el nombre real
+
                 RatingScreen(
                     toUserId = userId,
                     serviceType = serviceType,
+                    userName = userName, // Pasa el `userName` aquí
                     onRatingSubmit = { rating ->
-                        // Aquí guardaremos la reseña en Firebase
                         saveRatingToFirebase(rating) {
-                            // Una vez guardada, navegamos de vuelta
                             navController.popBackStack()
                         }
                     },
@@ -102,6 +106,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+
         }
     }
 
