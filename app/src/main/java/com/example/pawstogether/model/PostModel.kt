@@ -18,7 +18,8 @@ data class PetPost(
 
 data class Comment(
     val userId: String = "",
-    val userName: String = "", // Add this field
-    val text: String = ""
+    val userName: String = "",
+    val text: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )
 

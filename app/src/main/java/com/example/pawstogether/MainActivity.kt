@@ -156,18 +156,31 @@ class MainActivity : ComponentActivity() {
             }
     }
 
-    private fun registerWithEmail(email: String, password: String, petExperience: String, interests: String, services: String, navController: NavHostController) {
+    private fun registerWithEmail(
+        email: String,
+        password: String,
+        petExperience: String,
+        interests: String,
+        services: String,
+        navController: NavHostController
+    ) {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
+                        // Extraer el nombre de usuario del email (antes del @)
+                        val userName = email.substringBefore("@")
+
                         val userInfo = hashMapOf(
                             "email" to email,
+                            "userName" to userName, // Agregamos el userName
                             "petExperience" to petExperience,
                             "interests" to interests,
-                            "services" to services
+                            "services" to services,
+                            "averageRating" to 0f // Inicializamos el rating
                         )
+
                         db.collection("users").document(user.uid).set(userInfo)
                             .addOnSuccessListener {
                                 navController.navigate("home") {
@@ -175,12 +188,20 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             .addOnFailureListener { e ->
-                                Toast.makeText(baseContext, "Error al guardar la información: ${e.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    baseContext,
+                                    "Error al guardar la información: ${e.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                     }
                 } else {
                     val errorMessage = task.exception?.message ?: "Error desconocido"
-                    Toast.makeText(baseContext, "Registro fallido: $errorMessage", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        baseContext,
+                        "Registro fallido: $errorMessage",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
     }
