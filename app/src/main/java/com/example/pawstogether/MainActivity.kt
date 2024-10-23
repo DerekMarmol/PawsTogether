@@ -20,6 +20,7 @@ import com.example.pawstogether.ui.theme.PawsTogetherTheme
 import com.example.pawstogether.ui.theme.screens.AdoptionScreen
 import com.example.pawstogether.ui.theme.screens.HomeScreen
 import com.example.pawstogether.ui.theme.screens.LoginScreen
+import com.example.pawstogether.ui.theme.screens.PetCareScreen
 import com.example.pawstogether.ui.theme.screens.RatingScreen
 import com.example.pawstogether.ui.theme.screens.RegisterScreen
 import com.example.pawstogether.ui.theme.screens.ReportsScreen
@@ -73,6 +74,9 @@ class MainActivity : ComponentActivity() {
             }
             composable("services") {
                 ServicesScreen(navController)
+            }
+            composable("PetCare") {
+                PetCareScreen(navController)
             }
             composable(
                 route = "rating/{userId}/{serviceType}",

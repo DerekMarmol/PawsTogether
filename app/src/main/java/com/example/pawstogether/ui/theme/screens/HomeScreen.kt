@@ -10,7 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Healing
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
@@ -149,6 +151,15 @@ fun HomeScreen(navController: NavHostController) {
                     selected = false,
                     onClick = {
                         navController.navigate("services")
+                        scope.launch { drawerState.close() }
+                    }
+                )
+                NavigationDrawerItem(
+                    icon = { Icon(Icons.Default.LocalHospital, contentDescription = "Cuidado de Mascotas") },
+                    label = { Text("Cuidado de Mascotas") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("PetCare")
                         scope.launch { drawerState.close() }
                     }
                 )
