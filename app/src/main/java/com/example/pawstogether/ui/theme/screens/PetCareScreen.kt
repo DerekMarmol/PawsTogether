@@ -94,6 +94,17 @@ fun PetCareScreen(navController: NavHostController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        // Navega a la nueva pantalla de clínicas veterinarias
+                        navController.navigate("veterinary_list")
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Ver Clínicas Veterinarias")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(text = "Publicaciones Recientes", style = MaterialTheme.typography.headlineMedium)
                 LazyColumn {

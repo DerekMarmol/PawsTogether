@@ -25,6 +25,7 @@ import com.example.pawstogether.ui.theme.screens.RatingScreen
 import com.example.pawstogether.ui.theme.screens.RegisterScreen
 import com.example.pawstogether.ui.theme.screens.ReportsScreen
 import com.example.pawstogether.ui.theme.screens.ServicesScreen
+import com.example.pawstogether.ui.theme.screens.VeterinaryListScreen
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -78,6 +79,8 @@ class MainActivity : ComponentActivity() {
             composable("PetCare") {
                 PetCareScreen(navController)
             }
+            composable("veterinary_list") {
+                VeterinaryListScreen(navController) }
             composable(
                 route = "rating/{userId}/{serviceType}",
                 arguments = listOf(
