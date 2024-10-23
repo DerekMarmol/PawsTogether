@@ -23,6 +23,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.ui.text.input.TextFieldValue
+import com.example.pawstogether.ui.theme.components.MediaPicker
+import com.example.pawstogether.ui.theme.components.MediaPreview
+import com.example.pawstogether.ui.theme.components.PetPostItem
 
 @Composable
 fun ReportsScreen() {
