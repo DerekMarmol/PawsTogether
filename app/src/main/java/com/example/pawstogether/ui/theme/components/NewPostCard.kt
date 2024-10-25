@@ -48,7 +48,6 @@ fun NewPostCard(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Obtener el nombre de usuario actual cuando el componente se monta
     LaunchedEffect(currentUserId) {
         Log.d("NewPostCard", "currentUserId: $currentUserId")
         Utils.getCurrentUserName(currentUserId) { username ->

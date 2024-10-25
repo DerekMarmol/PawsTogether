@@ -78,7 +78,10 @@ class MainActivity : ComponentActivity() {
                 HomeScreen(navController = navController)
             }
             composable("reports") {
-                ReportsScreen()
+                ReportsScreen(
+                    onNavigateBack = { navController.navigateUp() },
+                    navigateToSearch = { navController.navigate("search") }
+                )
             }
             composable("adoption") {
                 AdoptionScreen()
