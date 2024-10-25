@@ -2,6 +2,7 @@ package com.example.pawstogether.ui.theme.components
 
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,11 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.pawstogether.model.PetPost
+import com.example.pawstogether.utils.Utils
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+
 
 @Composable
 fun NewPostCard(
@@ -40,8 +44,17 @@ fun NewPostCard(
     var newPostDescription by remember { mutableStateOf("") }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var actualUserName by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Obtener el nombre de usuario actual cuando el componente se monta
+    LaunchedEffect(currentUserId) {
+        Log.d("NewPostCard", "currentUserId: $currentUserId")
+        Utils.getCurrentUserName(currentUserId) { username ->
+            actualUserName = username
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -92,7 +105,8 @@ fun NewPostCard(
                                 val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
                                 val newPost = PetPost(
                                     id = UUID.randomUUID().toString(),
-                                    userId = "currentUserId", // Reemplaza esto con el ID real del usuario
+                                    userId = currentUserId,
+                                    userName = actualUserName, // Usamos el nombre real del usuario
                                     mediaUrl = downloadUrl,
                                     description = newPostDescription,
                                     isVideo = isVideo,
@@ -102,7 +116,7 @@ fun NewPostCard(
                                     timestamp = System.currentTimeMillis()
                                 )
                                 saveNewPost(newPost)
-                                // No necesitas llamar a onNewPost aquí, ya que el listener se encargará de actualizar la lista
+                                onNewPost(downloadUrl, newPostDescription)
                                 // Limpiar los campos después de publicar
                                 newPostUri = null
                                 newPostDescription = ""
@@ -110,6 +124,7 @@ fun NewPostCard(
                             } catch (e: Exception) {
                                 Log.e("NewPostCard", "Error al subir el archivo", e)
                                 // Mostrar un mensaje de error al usuario
+                                Toast.makeText(context, "Error al crear la publicación: ${e.message}", Toast.LENGTH_LONG).show()
                             } finally {
                                 isLoading = false
                             }
@@ -117,7 +132,7 @@ fun NewPostCard(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
+                enabled = !isLoading && newPostUri != null
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
@@ -129,12 +144,13 @@ fun NewPostCard(
     }
 }
 
-
+// Función auxiliar para guardar el post
 suspend fun saveNewPost(post: PetPost) {
     try {
         val db = FirebaseFirestore.getInstance()
         db.collection("posts").add(post).await()
     } catch (e: Exception) {
         Log.e("Firestore", "Error al guardar el post", e)
+        throw e
     }
 }

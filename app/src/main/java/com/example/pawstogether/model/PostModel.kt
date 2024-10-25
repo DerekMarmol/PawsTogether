@@ -3,7 +3,7 @@ package com.example.pawstogether.model
 data class PetPost(
     val id: String = "",
     val userId: String = "",
-    val userName: String = "", // Add this field
+    val userName: String = "",
     val mediaUrl: String = "",
     val description: String = "",
     val isVideo: Boolean = false,

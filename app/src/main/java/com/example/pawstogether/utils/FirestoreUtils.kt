@@ -57,7 +57,7 @@ suspend fun handleNewPost(
     }
 }
 
-suspend fun handlePostInteraction(
+fun handlePostInteraction(
     action: PostAction,
     currentUserId: String,
     currentUserName: String,
@@ -66,6 +66,7 @@ suspend fun handlePostInteraction(
     try {
         when (action) {
             is PostAction.Like -> {
+                Log.d("handlePostInteraction", "Dando like al post: ${action.postId}")
                 db.collection("posts").document(action.postId)
                     .update(
                         "likes", FieldValue.increment(1),
@@ -73,6 +74,7 @@ suspend fun handlePostInteraction(
                     )
             }
             is PostAction.Unlike -> {
+                Log.d("handlePostInteraction", "Quitando like del post: ${action.postId}")
                 db.collection("posts").document(action.postId)
                     .update(
                         "likes", FieldValue.increment(-1),
@@ -80,16 +82,30 @@ suspend fun handlePostInteraction(
                     )
             }
             is PostAction.Comment -> {
+                Log.d("handlePostInteraction", "Añadiendo comentario al post: ${action.postId}")
+                Log.d("handlePostInteraction", "Comentario: ${action.text}")
                 val newComment = Comment(
                     userId = currentUserId,
                     userName = currentUserName,
-                    text = action.text
+                    text = action.text,
+                    timestamp = System.currentTimeMillis()
                 )
                 db.collection("posts").document(action.postId)
                     .update("comments", FieldValue.arrayUnion(newComment))
+                    .addOnSuccessListener {
+                        Log.d("handlePostInteraction", "Comentario añadido exitosamente")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("handlePostInteraction", "Error al añadir comentario", e)
+                    }
             }
         }
     } catch (e: Exception) {
-        Log.e("HomeScreen", "Error al actualizar el post", e)
+        Log.e("handlePostInteraction", "Error al actualizar el post", e)
     }
 }
+
+
+
+
+

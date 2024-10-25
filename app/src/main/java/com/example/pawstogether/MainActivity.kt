@@ -21,6 +21,7 @@ import com.example.pawstogether.ui.theme.screens.AdoptionScreen
 import com.example.pawstogether.ui.theme.screens.HomeScreen
 import com.example.pawstogether.ui.theme.screens.LoginScreen
 import com.example.pawstogether.ui.theme.screens.PetCareScreen
+import com.example.pawstogether.ui.theme.screens.ProfileScreen
 import com.example.pawstogether.ui.theme.screens.RatingScreen
 import com.example.pawstogether.ui.theme.screens.RegisterScreen
 import com.example.pawstogether.ui.theme.screens.ReportsScreen
@@ -57,6 +58,15 @@ class MainActivity : ComponentActivity() {
                     onNavigateToRegister = { navController.navigate("register") }
                 )
             }
+            composable("profile") {
+                ProfileScreen(
+                    onProfileUpdated = {
+                        // Acción después de actualizar el perfil, por ejemplo, mostrar un mensaje o navegar a otra pantalla.
+                        Toast.makeText(this@MainActivity, "Perfil actualizado", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
             composable("register") {
                 RegisterScreen(
                     onRegister = { email, password, petExperience, interests, services ->
