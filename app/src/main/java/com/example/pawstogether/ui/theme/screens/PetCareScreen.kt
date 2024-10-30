@@ -169,7 +169,7 @@ fun CreateArticleDialog(onDismiss: () -> Unit) {
                     onClick = { videoPickerLauncher.launch("video/*") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Subir Video (Opcional)")
+                    Text("Subir Video")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -178,7 +178,7 @@ fun CreateArticleDialog(onDismiss: () -> Unit) {
                     onClick = { imagePickerLauncher.launch("image/*") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Subir Imagen (Opcional)")
+                    Text("Subir Imagen")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -187,7 +187,7 @@ fun CreateArticleDialog(onDismiss: () -> Unit) {
                     onClick = { guidePickerLauncher.launch("application/pdf") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Subir Guía/Documento (Opcional)")
+                    Text("Subir Guía/Documento")
                 }
             }
         },
@@ -422,11 +422,6 @@ fun ReviewForm(postId: String) {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = isThankYou,
-                onCheckedChange = { isThankYou = it }
-            )
-            Text("Marcar como agradecimiento especial")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
