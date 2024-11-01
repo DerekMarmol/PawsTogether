@@ -2,6 +2,7 @@ package com.example.pawstogether.viewmodel
 
 import androidx.annotation.OptIn
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import com.example.pawstogether.model.ChatPreview
@@ -14,6 +15,7 @@ import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 class ChatViewModel : ViewModel() {
@@ -37,121 +39,211 @@ class ChatViewModel : ViewModel() {
 
     @OptIn(UnstableApi::class)
     fun sendMessage(receiverId: String, receiverName: String) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val currentUserName = auth.currentUser?.displayName ?: "Usuario"
-        val messageText = messageText.value.trim()
+        viewModelScope.launch {
+            try {
+                val currentUser = auth.currentUser ?: run {
+                    Log.e("ChatViewModel", "No current user found")
+                    return@launch
+                }
+                val messageText = _messageText.value.trim()
+                if (messageText.isEmpty()) return@launch
 
-        if (messageText.isEmpty()) return
+                val currentUserName = currentUser.displayName ?: "Usuario"
+                Log.d("ChatViewModel", "Current user name: $currentUserName")
 
-        val message = Message(
-            id = UUID.randomUUID().toString(),
-            senderId = currentUserId,
-            receiverId = receiverId,
-            content = messageText,
-            senderName = currentUserName,
-            timestamp = System.currentTimeMillis()
-        )
+                val message = Message(
+                    id = UUID.randomUUID().toString(),
+                    senderId = currentUser.uid,
+                    receiverId = receiverId,
+                    content = messageText,
+                    senderName = currentUserName, // Aseguramos usar el nombre actual
+                    timestamp = System.currentTimeMillis()
+                )
 
-        // Crear array de participantes para facilitar las consultas
-        val participants = listOf(currentUserId, receiverId).sorted()
+                val chatId = getChatId(currentUser.uid, receiverId)
 
-        val messageData = hashMapOf(
-            "id" to message.id,
-            "senderId" to message.senderId,
-            "receiverId" to message.receiverId,
-            "content" to message.content,
-            "timestamp" to message.timestamp,
-            "senderName" to message.senderName,
-            "participants" to participants
-        )
+                // Batch write para asegurar que todas las operaciones se completen
+                val batch = firestore.batch()
 
-        firestore.collection("messages")
-            .document(message.id)
-            .set(messageData)
-            .addOnSuccessListener {
-                _messageText.value = ""
+                // Documento principal del chat con nombres actualizados
+                val chatRef = firestore.collection("chats").document(chatId)
+                batch.set(
+                    chatRef,
+                    hashMapOf(
+                        "participants" to listOf(currentUser.uid, receiverId),
+                        "lastMessage" to messageText,
+                        "timestamp" to message.timestamp,
+                        "participantNames" to mapOf(
+                            currentUser.uid to currentUserName,
+                            receiverId to receiverName
+                        )
+                    )
+                )
 
-                // Actualizar o crear el chat preview para ambos usuarios
-                updateChatPreview(currentUserId, receiverId, receiverName, message)
-                updateChatPreview(receiverId, currentUserId, currentUserName, message)
+                // Mensaje en la subcolección
+                val messageRef = chatRef.collection("messages").document(message.id)
+                batch.set(messageRef, message)
+
+                // Chat preview para el usuario actual
+                val currentUserPreviewRef = firestore.collection("chatPreviews")
+                    .document(currentUser.uid)
+                    .collection("userChats")
+                    .document(receiverId)
+
+                batch.set(
+                    currentUserPreviewRef,
+                    hashMapOf(
+                        "userId" to receiverId,
+                        "userName" to receiverName,
+                        "lastMessage" to messageText,
+                        "timestamp" to message.timestamp,
+                        "chatId" to chatId  // Agregar chatId para referencia
+                    )
+                )
+
+                val receiverPreviewRef = firestore.collection("chatPreviews")
+                    .document(receiverId)
+                    .collection("userChats")
+                    .document(currentUser.uid)
+
+                batch.set(
+                    receiverPreviewRef,
+                    hashMapOf(
+                        "userId" to currentUser.uid,
+                        "userName" to currentUserName,
+                        "lastMessage" to messageText,
+                        "timestamp" to message.timestamp,
+                        "chatId" to chatId
+                    )
+                )
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        Log.d("ChatViewModel", "Message sent successfully by: $currentUserName")
+                        _messageText.value = ""
+                        loadChatPreviews()
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("ChatViewModel", "Error sending message", e)
+                    }
+
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error in sendMessage", e)
             }
-            .addOnFailureListener { e ->
-                Log.e("ChatViewModel", "Error sending message", e)
-            }
+        }
     }
 
-    private fun updateChatPreview(
-        ownerId: String,
-        otherUserId: String,
-        otherUserName: String,
-        lastMessage: Message
-    ) {
-        val chatPreviewRef = firestore.collection("chatPreviews")
-            .document("${ownerId}_${otherUserId}")
-
-        val previewData = hashMapOf(
-            "userId" to otherUserId,
-            "userName" to otherUserName,
-            "lastMessage" to lastMessage.content,
-            "timestamp" to lastMessage.timestamp,
-            "ownerId" to ownerId
-        )
-
-        chatPreviewRef.set(previewData)
+    @OptIn(UnstableApi::class)
+    fun startAdoptionChat(otherUserId: String, otherUserName: String, petName: String) {
+        viewModelScope.launch {
+            try {
+                val currentUser = auth.currentUser ?: return@launch
+                val initialMessage = "¡Hola! Me interesa adoptar a $petName. ¿Podríamos hablar sobre el proceso de adopción?"
+                _messageText.value = initialMessage
+                sendMessage(otherUserId, otherUserName)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error starting adoption chat", e)
+            }
+        }
     }
 
     @OptIn(UnstableApi::class)
     fun loadChatPreviews() {
-        val currentUserId = auth.currentUser?.uid ?: return
-        _isLoading.value = true
-        Log.d("ChatViewModel", "Loading chats for user: $currentUserId")
-
-        // Simplificar la consulta para evitar problemas con índices
-        firestore.collection("chatPreviews")
-            .whereEqualTo("ownerId", currentUserId)
-            .orderBy("timestamp", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                _isLoading.value = false
-
-                if (error != null) {
-                    Log.e("ChatViewModel", "Error loading chats", error)
-                    return@addSnapshotListener
+        viewModelScope.launch {
+            try {
+                val currentUserId = auth.currentUser?.uid ?: run {
+                    Log.e("ChatViewModel", "No current user found in loadChatPreviews")
+                    return@launch
                 }
 
-                val chats = snapshot?.documents?.mapNotNull { doc ->
-                    ChatPreview(
-                        userId = doc.getString("userId") ?: "",
-                        userName = doc.getString("userName") ?: "",
-                        lastMessage = doc.getString("lastMessage") ?: "",
-                        timestamp = doc.getLong("timestamp") ?: 0
-                    )
-                } ?: emptyList()
+                Log.d("ChatViewModel", "Loading chat previews for user: $currentUserId")
+                _isLoading.value = true
 
-                _chatPreviews.value = chats
-                Log.d("ChatViewModel", "Chat previews updated. Count: ${chats.size}")
+                firestore.collection("chatPreviews")
+                    .document(currentUserId)
+                    .collection("userChats")
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            Log.e("ChatViewModel", "Error loading chat previews", error)
+                            _isLoading.value = false
+                            return@addSnapshotListener
+                        }
+
+                        val chats = snapshot?.documents?.mapNotNull { doc ->
+                            try {
+                                ChatPreview(
+                                    userId = doc.getString("userId") ?: "",
+                                    userName = doc.getString("userName") ?: "",
+                                    lastMessage = doc.getString("lastMessage") ?: "",
+                                    timestamp = doc.getLong("timestamp") ?: 0
+                                ).also {
+                                    Log.d("ChatViewModel", "Loaded chat preview: $it")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("ChatViewModel", "Error parsing chat preview", e)
+                                null
+                            }
+                        } ?: emptyList()
+
+                        Log.d("ChatViewModel", "Loaded ${chats.size} chat previews")
+                        _chatPreviews.value = chats
+                        _isLoading.value = false
+                    }
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error in loadChatPreviews", e)
+                _isLoading.value = false
             }
+        }
     }
-
 
     @OptIn(UnstableApi::class)
     fun listenToMessages(otherUserId: String) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val participants = listOf(currentUserId, otherUserId).sorted()
-
-        firestore.collection("messages")
-            .whereEqualTo("participants", participants)
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e("ChatViewModel", "Error listening to messages", error)
-                    return@addSnapshotListener
+        viewModelScope.launch {
+            try {
+                val currentUserId = auth.currentUser?.uid ?: run {
+                    Log.e("ChatViewModel", "No current user found in listenToMessages")
+                    return@launch
                 }
 
-                val messagesList = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Message::class.java)
-                } ?: emptyList()
+                val chatId = getChatId(currentUserId, otherUserId)
+                Log.d("ChatViewModel", "Listening to messages for chatId: $chatId")
 
-                _messages.value = messagesList
+                firestore.collection("chats")
+                    .document(chatId)
+                    .collection("messages")
+                    .orderBy("timestamp")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            Log.e("ChatViewModel", "Error listening to messages", error)
+                            return@addSnapshotListener
+                        }
+
+                        val messagesList = snapshot?.documents?.mapNotNull { doc ->
+                            try {
+                                doc.toObject(Message::class.java).also { message ->
+                                    Log.d("ChatViewModel", "Parsed message: $message")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("ChatViewModel", "Error parsing message", e)
+                                null
+                            }
+                        } ?: emptyList()
+
+                        Log.d("ChatViewModel", "Setting messages list with ${messagesList.size} messages")
+                        _messages.value = messagesList
+                    }
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error in listenToMessages", e)
             }
+        }
+    }
+
+    private fun getChatId(userId1: String, userId2: String): String {
+        return if (userId1 < userId2) {
+            "${userId1}_${userId2}"
+        } else {
+            "${userId2}_${userId1}"
+        }
     }
 }

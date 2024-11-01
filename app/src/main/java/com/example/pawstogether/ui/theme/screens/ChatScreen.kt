@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +46,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
@@ -54,15 +54,10 @@ fun ChatScreen(
     otherUserName: String,
     navigateUp: () -> Unit
 ) {
-    // Observa los previews de chats y mensajes
-    val chatPreviews by viewModel.chatPreviews.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val messageText by viewModel.messageText.collectAsState()
     val currentUserId = Firebase.auth.currentUser?.uid
     val listState = rememberLazyListState()
-
-    // Log para ver cuántos chats hay
-    Log.d("ChatScreen", "Recomposing with ${chatPreviews.size} chats")
 
     LaunchedEffect(Unit) {
         viewModel.listenToMessages(otherUserId)
@@ -78,55 +73,51 @@ fun ChatScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        // Verifica si hay chats disponibles
-        if (chatPreviews.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Error, // O el icono que elijas
-                        contentDescription = "Sin mensajes",
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "No tienes mensajes aún",
-                        style = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onBackground),
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                    Text(
-                        text = "Toca el botón para iniciar una nueva conversación.",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onBackground),
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // Barra superior
+            TopAppBar(
+                title = { Text(text = otherUserName) },
+                navigationIcon = {
+                    IconButton(onClick = navigateUp) {
+                        Icon(Icons.Default.ArrowBack, "Volver")
+                    }
                 }
-            }
-        } else {
-            Column(
+            )
+
+            // Lista de mensajes
+            LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                state = listState
             ) {
-                // Barra superior
-                TopAppBar(
-                    title = { Text(text = otherUserName) },
-                    navigationIcon = {
-                        IconButton(onClick = navigateUp) {
-                            Icon(Icons.Default.ArrowBack, "Volver")
+                if (messages.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Chat,
+                                    contentDescription = "Sin mensajes",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = "Inicia la conversación",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(top = 16.dp)
+                                )
+                            }
                         }
                     }
-                )
-
-                // Lista de mensajes
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    state = listState
-                ) {
+                } else {
                     items(messages) { message ->
                         val isCurrentUser = message.senderId == currentUserId
                         MessageBubble(
@@ -136,30 +127,30 @@ fun ChatScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
+            }
 
-                // Campo de entrada de mensaje
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        value = messageText,
-                        onValueChange = { viewModel.updateMessageText(it) },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Escribe un mensaje...") }
-                    )
+            // Campo de entrada de mensaje
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = messageText,
+                    onValueChange = { viewModel.updateMessageText(it) },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Escribe un mensaje...") }
+                )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
-                    IconButton(
-                        onClick = {
-                            viewModel.sendMessage(otherUserId, otherUserName)
-                        }
-                    ) {
-                        Icon(Icons.Default.Send, "Enviar mensaje")
+                IconButton(
+                    onClick = {
+                        viewModel.sendMessage(otherUserId, otherUserName)
                     }
+                ) {
+                    Icon(Icons.Default.Send, "Enviar mensaje")
                 }
             }
         }

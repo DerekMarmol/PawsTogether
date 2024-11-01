@@ -179,19 +179,15 @@ private fun formatTimestamp(timestamp: Long): String {
 
     return when {
         now.get(Calendar.DATE) == messageTime.get(Calendar.DATE) -> {
-            // Si es hoy, mostrar la hora
             sdf.format(date)
         }
         now.get(Calendar.DATE) - messageTime.get(Calendar.DATE) == 1 -> {
-            // Si fue ayer
             "Ayer"
         }
         now.get(Calendar.WEEK_OF_YEAR) == messageTime.get(Calendar.WEEK_OF_YEAR) -> {
-            // Si fue esta semana, mostrar el día
             SimpleDateFormat("EEEE", Locale("es")).format(date)
         }
         else -> {
-            // Para fechas más antiguas, mostrar la fecha corta
             SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(date)
         }
     }

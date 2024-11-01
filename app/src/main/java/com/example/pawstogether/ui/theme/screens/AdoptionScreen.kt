@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.pawstogether.model.AdoptionPet
+import com.example.pawstogether.viewmodel.ChatViewModel
 import com.example.pawstogether.viewmodel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -42,6 +43,7 @@ fun AdoptionScreen(
 ) {
     val viewModel: ProfileViewModel = viewModel()
     val db = FirebaseFirestore.getInstance()
+    val chatViewModel: ChatViewModel = viewModel()
     val auth = FirebaseAuth.getInstance()
     var adoptionPets by remember { mutableStateOf(listOf<AdoptionPet>()) }
     var showForm by remember { mutableStateOf(false) }
@@ -109,7 +111,8 @@ fun AdoptionScreen(
                         AdoptionPetItem(
                             pet = pet,
                             navController = navController,
-                            currentUserId = auth.currentUser?.uid ?: ""
+                            currentUserId = auth.currentUser?.uid ?: "",
+                            chatViewModel = chatViewModel
                         )
                     }
                 }
@@ -346,7 +349,8 @@ fun AddAdoptionForm(
 fun AdoptionPetItem(
     pet: AdoptionPet,
     navController: NavController,
-    currentUserId: String
+    currentUserId: String,
+    chatViewModel: ChatViewModel
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditForm by remember { mutableStateOf(false) }
@@ -533,6 +537,11 @@ fun AdoptionPetItem(
             if (currentUserId != pet.userId) {
                 Button(
                     onClick = {
+                        chatViewModel.startAdoptionChat(
+                            otherUserId = pet.userId,
+                            otherUserName = pet.userName,
+                            petName = pet.petName
+                        )
                         navController.navigateToChat(
                             userId = pet.userId,
                             userName = pet.userName
@@ -588,6 +597,7 @@ fun AdoptionPetItem(
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -735,7 +745,6 @@ fun EditAdoptionForm(
                         age.isNotBlank() && description.isNotBlank()) {
                         isLoading = true
 
-                        // Función para actualizar los datos después de manejar los archivos
                         fun updatePetData(newImageUrl: String? = null, newMedicalHistoryUrl: String? = null) {
                             val updatedPet = pet.copy(
                                 petName = petName,
