@@ -43,18 +43,17 @@ data class Pet(
 
 @Composable
 fun ProfileScreen(
+    viewModel: ProfileViewModel = viewModel(),
     onProfileUpdated: () -> Unit = {}
 ) {
-    var displayName by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
+    var displayName by remember { mutableStateOf(viewModel.displayName) }
+    var username by remember { mutableStateOf(viewModel.username) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isEditing by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var pets by remember { mutableStateOf(listOf<Pet>()) }
     var showAddPetDialog by remember { mutableStateOf(false) }
-
-    val viewModel: ProfileViewModel = viewModel()
 
     val currentUser = FirebaseAuth.getInstance().currentUser
     val storage = FirebaseStorage.getInstance()
@@ -68,15 +67,13 @@ fun ProfileScreen(
             isLoading = true
             val storageRef = storage.reference.child("profile_images/${currentUser?.uid}")
             storageRef.putFile(uri)
-                .addOnSuccessListener { taskSnapshot ->
+                .addOnSuccessListener {
                     storageRef.downloadUrl
                         .addOnSuccessListener { downloadUri ->
                             currentUser?.uid?.let { uid ->
                                 firestore.collection("users").document(uid)
                                     .update("profileImageUrl", downloadUri.toString())
-                                    .addOnSuccessListener {
-                                        isLoading = false
-                                    }
+                                    .addOnSuccessListener { isLoading = false }
                                     .addOnFailureListener { exception ->
                                         error = "Error al guardar la imagen: ${exception.message}"
                                         isLoading = false
@@ -87,8 +84,8 @@ fun ProfileScreen(
         }
     }
 
+    // Remove the updateDisplayName method call
     LaunchedEffect(currentUser?.uid) {
-        viewModel.updateDisplayName(displayName)
         currentUser?.uid?.let { uid ->
             firestore.collection("users").document(uid)
                 .get()
@@ -130,6 +127,7 @@ fun ProfileScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
+            // Image with editing option
             Box(
                 modifier = Modifier
                     .size(120.dp)
@@ -158,64 +156,88 @@ fun ProfileScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Editar foto",
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        .padding(4.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedTextField(
-                value = displayName,
-                onValueChange = { displayName = it },
-                label = { Text("Nombre") },
-                enabled = isEditing,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(1.dp, RectangleShape, true)
-                    .padding(horizontal = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Nombre de usuario") },
-                enabled = isEditing,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(1.dp, RectangleShape, true)
-                    .padding(horizontal = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Mis mascotas",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+            if (isEditing) {
+                OutlinedTextField(
+                    value = displayName,
+                    onValueChange = { displayName = it },
+                    label = { Text("Nombre") },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                IconButton(onClick = { showAddPetDialog = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Agregar mascota"
-                    )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Nombre de usuario") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        isLoading = true
+                        viewModel.updateProfile(
+                            displayName,
+                            username,
+                            onSuccess = {
+                                isLoading = false
+                                isEditing = false
+                                onProfileUpdated()
+                            },
+                            onError = { errorMessage ->
+                                isLoading = false
+                                error = errorMessage
+                            }
+                        )
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else {
+                        Text("Guardar cambios")
+                    }
                 }
+            } else {
+                Text(
+                    text = "Nombre: $displayName",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Usuario: $username",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { isEditing = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Editar perfil")
+                }
+            }
+        }
+
+        item {
+            Button(
+                onClick = { showAddPetDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Añadir Mascota")
             }
         }
 
@@ -236,59 +258,35 @@ fun ProfileScreen(
             )
         }
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    if (isEditing) {
+        if (showAddPetDialog) {
+            item {
+                AddPetDialog(
+                    onDismiss = { showAddPetDialog = false },
+                    onPetAdded = { newPet ->
                         currentUser?.uid?.let { uid ->
-                            isLoading = true
-                            val userUpdates = mutableMapOf<String, Any>(
-                                "displayName" to displayName,
-                                "username" to username
-                            )
                             firestore.collection("users").document(uid)
-                                .update(userUpdates)
-                                .addOnSuccessListener {
-                                    isEditing = false
-                                    onProfileUpdated()
-                                    isLoading = false
-                                }
-                                .addOnFailureListener { exception ->
-                                    error = "Error al actualizar perfil: ${exception.message}"
-                                    isLoading = false
+                                .collection("pets")
+                                .add(newPet)
+                                .addOnSuccessListener { documentReference ->
+                                    pets = pets + newPet.copy(id = documentReference.id)
+                                    showAddPetDialog = false
                                 }
                         }
-                    } else {
-                        isEditing = true
                     }
-                }
-            ) {
-                Text(if (isEditing) "Guardar" else "Editar")
-            }
-
-            if (error.isNotEmpty()) {
-                Text(error, color = MaterialTheme.colorScheme.error)
+                )
             }
         }
-    }
 
-    if (showAddPetDialog) {
-        AddPetDialog(
-            onDismiss = { showAddPetDialog = false },
-            onPetAdded = { newPet ->
-                currentUser?.uid?.let { uid ->
-                    firestore.collection("users").document(uid)
-                        .collection("pets")
-                        .add(newPet)
-                        .addOnSuccessListener { documentReference ->
-                            pets = pets + newPet.copy(id = documentReference.id)
-                            showAddPetDialog = false
-                        }
-                }
+        if (error.isNotEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
-        )
+        }
     }
 }
 

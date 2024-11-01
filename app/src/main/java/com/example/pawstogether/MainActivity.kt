@@ -65,12 +65,10 @@ class MainActivity : ComponentActivity() {
             composable("profile") {
                 ProfileScreen(
                     onProfileUpdated = {
-                        // Acción después de actualizar el perfil, por ejemplo, mostrar un mensaje o navegar a otra pantalla.
                         Toast.makeText(this@MainActivity, "Perfil actualizado", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
-
             composable("register") {
                 RegisterScreen(
                     onRegister = { email, password, petExperience, interests, services ->
@@ -88,7 +86,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
             composable("adoption") {
-                AdoptionScreen()
+                AdoptionScreen(navController = navController)
             }
             composable("services") {
                 ServicesScreen(navController)
