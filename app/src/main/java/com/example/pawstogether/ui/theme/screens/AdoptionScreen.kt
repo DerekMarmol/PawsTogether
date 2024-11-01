@@ -83,7 +83,6 @@ fun AdoptionScreen(
             if (showForm) {
                 AddAdoptionForm(
                     onSubmit = { newPet ->
-                        // Agregamos la información del usuario actual
                         val petWithUserInfo = newPet.copy(
                             userId = auth.currentUser?.uid ?: "",
                             userName = viewModel.displayName
@@ -156,7 +155,6 @@ fun AddAdoptionForm(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Campos básicos
         OutlinedTextField(
             value = petName,
             onValueChange = { petName = it },
@@ -166,7 +164,6 @@ fun AddAdoptionForm(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Campo de especie editable
         OutlinedTextField(
             value = species,
             onValueChange = { species = it },
@@ -204,7 +201,6 @@ fun AddAdoptionForm(
             minLines = 3
         )
 
-        // Checkboxes
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -231,7 +227,6 @@ fun AddAdoptionForm(
             Text("Tiene vacunas")
         }
 
-        // Botones de archivo
         Button(
             onClick = { imageLauncher.launch("image/*") },
             modifier = Modifier.fillMaxWidth()
@@ -262,7 +257,6 @@ fun AddAdoptionForm(
             )
         }
 
-        // Botones de acción
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -283,12 +277,10 @@ fun AddAdoptionForm(
                         isLoading = true
                         val storage = FirebaseStorage.getInstance()
 
-                        // Subir imagen
                         val imageRef = storage.reference.child("images/${UUID.randomUUID()}")
                         imageRef.putFile(imageUri!!)
                             .addOnSuccessListener { imageTaskSnapshot ->
                                 imageTaskSnapshot.storage.downloadUrl.addOnSuccessListener { imageUrl ->
-                                    // Si hay historial médico, subirlo
                                     val uploadMedicalHistory = medicalHistoryUri?.let { uri ->
                                         val medicalRef = storage.reference.child("medicalHistory/${UUID.randomUUID()}")
                                         medicalRef.putFile(uri).continueWith { task ->
@@ -298,7 +290,6 @@ fun AddAdoptionForm(
                                         }
                                     }
 
-                                    // Procesar la subida del historial médico si existe
                                     if (uploadMedicalHistory != null) {
                                         uploadMedicalHistory.addOnSuccessListener { medicalHistoryUrl ->
                                             val newPet = AdoptionPet(
@@ -316,7 +307,6 @@ fun AddAdoptionForm(
                                             isLoading = false
                                         }
                                     } else {
-                                        // Si no hay historial médico, crear el objeto sin él
                                         val newPet = AdoptionPet(
                                             petName = petName,
                                             species = species,
@@ -358,6 +348,77 @@ fun AdoptionPetItem(
     navController: NavController,
     currentUserId: String
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditForm by remember { mutableStateOf(false) }
+    val db = FirebaseFirestore.getInstance()
+    val storage = FirebaseStorage.getInstance()
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirmar eliminación") },
+            text = { Text("¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (pet.imageUrl.isNotEmpty()) {
+                            val imageRef = storage.getReferenceFromUrl(pet.imageUrl)
+                            imageRef.delete()
+                        }
+
+                        pet.medicalHistoryUrl?.let { url ->
+                            if (url.isNotEmpty()) {
+                                val medicalRef = storage.getReferenceFromUrl(url)
+                                medicalRef.delete()
+                            }
+                        }
+
+                        db.collection("adoptionPets")
+                            .document(pet.id)
+                            .delete()
+                            .addOnSuccessListener {
+                                Log.d("AdoptionPetItem", "Publicación eliminada con éxito")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("AdoptionPetItem", "Error al eliminar la publicación", e)
+                            }
+
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showEditForm) {
+        EditAdoptionForm(
+            pet = pet,
+            onDismiss = { showEditForm = false },
+            onUpdate = { updatedPet ->
+                db.collection("adoptionPets")
+                    .document(pet.id)
+                    .set(updatedPet)
+                    .addOnSuccessListener {
+                        Log.d("AdoptionPetItem", "Publicación actualizada con éxito")
+                        showEditForm = false
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("AdoptionPetItem", "Error al actualizar la publicación", e)
+                    }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -365,7 +426,6 @@ fun AdoptionPetItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header con información del usuario
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -412,7 +472,6 @@ fun AdoptionPetItem(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Estado de salud
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
@@ -456,7 +515,6 @@ fun AdoptionPetItem(
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = {
-                        // Aquí puedes implementar la lógica para descargar o ver el historial médico
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -472,7 +530,6 @@ fun AdoptionPetItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Solo mostrar el botón de chat si no es el propietario de la publicación
             if (currentUserId != pet.userId) {
                 Button(
                     onClick = {
@@ -492,15 +549,12 @@ fun AdoptionPetItem(
                     Text("Contactar para adopción")
                 }
             } else {
-                // Si es el propietario, mostrar opciones de edición/eliminación
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     OutlinedButton(
-                        onClick = {
-                            // Implementar lógica de edición
-                        },
+                        onClick = { showEditForm = true },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
@@ -515,9 +569,7 @@ fun AdoptionPetItem(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
-                        onClick = {
-                            // Implementar lógica de eliminación
-                        },
+                        onClick = { showDeleteDialog = true },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
@@ -537,7 +589,217 @@ fun AdoptionPetItem(
     }
 }
 
-// Extensión para la navegación al chat
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditAdoptionForm(
+    pet: AdoptionPet,
+    onDismiss: () -> Unit,
+    onUpdate: (AdoptionPet) -> Unit
+) {
+    var petName by remember { mutableStateOf(pet.petName) }
+    var species by remember { mutableStateOf(pet.species) }
+    var breed by remember { mutableStateOf(pet.breed) }
+    var age by remember { mutableStateOf(pet.age.toString()) }
+    var description by remember { mutableStateOf(pet.description) }
+    var isNeutered by remember { mutableStateOf(pet.isNeutered) }
+    var hasVaccines by remember { mutableStateOf(pet.hasVaccines) }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var medicalHistoryUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val storage = FirebaseStorage.getInstance()
+
+    val imageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> imageUri = uri }
+
+    val medicalHistoryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> medicalHistoryUri = uri }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Mascota en Adopción") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = petName,
+                    onValueChange = { petName = it },
+                    label = { Text("Nombre de la Mascota*") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = species,
+                    onValueChange = { species = it },
+                    label = { Text("Especie*") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = breed,
+                    onValueChange = { breed = it },
+                    label = { Text("Raza") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = age,
+                    onValueChange = { if (it.all { char -> char.isDigit() }) age = it },
+                    label = { Text("Edad (años)*") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripción*") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isNeutered,
+                        onCheckedChange = { isNeutered = it }
+                    )
+                    Text("Castrado/Esterilizado")
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = hasVaccines,
+                        onCheckedChange = { hasVaccines = it }
+                    )
+                    Text("Tiene vacunas")
+                }
+
+                OutlinedButton(
+                    onClick = { imageLauncher.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cambiar Imagen")
+                }
+
+                imageUri?.let {
+                    Text(
+                        text = "Nueva imagen seleccionada: ${it.lastPathSegment}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = { medicalHistoryLauncher.launch("*/*") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cambiar Historial Médico")
+                }
+
+                medicalHistoryUri?.let {
+                    Text(
+                        text = "Nuevo archivo seleccionado: ${it.lastPathSegment}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (petName.isNotBlank() && species.isNotBlank() &&
+                        age.isNotBlank() && description.isNotBlank()) {
+                        isLoading = true
+
+                        // Función para actualizar los datos después de manejar los archivos
+                        fun updatePetData(newImageUrl: String? = null, newMedicalHistoryUrl: String? = null) {
+                            val updatedPet = pet.copy(
+                                petName = petName,
+                                species = species,
+                                breed = breed,
+                                age = age.toIntOrNull() ?: 0,
+                                description = description,
+                                isNeutered = isNeutered,
+                                hasVaccines = hasVaccines,
+                                imageUrl = newImageUrl ?: pet.imageUrl,
+                                medicalHistoryUrl = newMedicalHistoryUrl ?: pet.medicalHistoryUrl
+                            )
+                            onUpdate(updatedPet)
+                        }
+
+                        if (imageUri != null) {
+                            val imageRef = storage.reference.child("images/${UUID.randomUUID()}")
+                            imageRef.putFile(imageUri!!)
+                                .addOnSuccessListener { imageTaskSnapshot ->
+                                    imageTaskSnapshot.storage.downloadUrl.addOnSuccessListener { imageUrl ->
+                                        if (medicalHistoryUri != null) {
+                                            val medicalRef = storage.reference.child("medicalHistory/${UUID.randomUUID()}")
+                                            medicalRef.putFile(medicalHistoryUri!!)
+                                                .addOnSuccessListener { medicalTaskSnapshot ->
+                                                    medicalTaskSnapshot.storage.downloadUrl.addOnSuccessListener { medicalUrl ->
+                                                        updatePetData(imageUrl.toString(), medicalUrl.toString())
+                                                    }
+                                                }
+                                        } else {
+                                            updatePetData(newImageUrl = imageUrl.toString())
+                                        }
+                                    }
+                                }
+                        } else if (medicalHistoryUri != null) {
+                            val medicalRef = storage.reference.child("medicalHistory/${UUID.randomUUID()}")
+                            medicalRef.putFile(medicalHistoryUri!!)
+                                .addOnSuccessListener { medicalTaskSnapshot ->
+                                    medicalTaskSnapshot.storage.downloadUrl.addOnSuccessListener { medicalUrl ->
+                                        updatePetData(newMedicalHistoryUrl = medicalUrl.toString())
+                                    }
+                                }
+                        } else {
+                            updatePetData()
+                        }
+                    }
+                },
+                enabled = petName.isNotBlank() && species.isNotBlank() &&
+                        age.isNotBlank() && description.isNotBlank()
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("Actualizar")
+                }
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
 fun NavController.navigateToChat(userId: String, userName: String) {
     this.navigate("chat/$userId/$userName")
 }
