@@ -23,8 +23,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import com.example.pawstogether.viewmodel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -51,6 +53,8 @@ fun ProfileScreen(
     var error by remember { mutableStateOf("") }
     var pets by remember { mutableStateOf(listOf<Pet>()) }
     var showAddPetDialog by remember { mutableStateOf(false) }
+
+    val viewModel: ProfileViewModel = viewModel()
 
     val currentUser = FirebaseAuth.getInstance().currentUser
     val storage = FirebaseStorage.getInstance()
@@ -84,6 +88,7 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(currentUser?.uid) {
+        viewModel.updateDisplayName(displayName)
         currentUser?.uid?.let { uid ->
             firestore.collection("users").document(uid)
                 .get()

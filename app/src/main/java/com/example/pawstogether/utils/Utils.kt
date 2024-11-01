@@ -5,7 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 object Utils {
     fun getCurrentUserName(userId: String, callback: (String) -> Unit) {
         if (userId.isBlank()) {
-            callback("") // O maneja el error según corresponda
+            callback("")
             return
         }
 

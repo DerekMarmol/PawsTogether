@@ -57,6 +57,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core:1.5.0")
     implementation("androidx.compose.material:material-icons-extended:1.5.0")
     implementation(platform(libs.androidx.compose.bom))
+    implementation ("com.google.dagger:hilt-android:2.44") // Usa la última versión disponible
+    implementation (libs.androidx.hilt.lifecycle.viewmodel)
     implementation(libs.androidx.ui)
     implementation (libs.coil.kt.coil.compose)
     implementation (libs.exoplayer.core)
@@ -75,6 +77,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.database.ktx)
+    implementation(libs.firebase.vertexai)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

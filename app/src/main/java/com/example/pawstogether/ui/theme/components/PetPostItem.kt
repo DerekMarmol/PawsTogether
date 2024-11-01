@@ -50,7 +50,6 @@ fun PetPostItem(
     var showComments by remember { mutableStateOf(false) }
     var actualUserName by remember { mutableStateOf("") }
 
-    // Obtener el nombre del usuario actual
     LaunchedEffect(currentUserId) {
         getCurrentUserName(currentUserId) { username ->
             actualUserName = username

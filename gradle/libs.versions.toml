@@ -2,6 +2,9 @@
 agp = "8.6.0"
 coilComposeVersion = "2.2.2"
 exoplayerUi = "2.19.1"
+hiltCompiler = "2.44"
+hiltCompilerVersion = "1.2.0"
+hiltLifecycleViewmodel = "1.0.0-alpha03"
 kotlin = "1.9.0"
 coreKtx = "1.10.1"
 junit = "4.13.2"
@@ -18,12 +21,17 @@ media3Exoplayer = "1.4.1"
 firebaseStorageKtx = "21.0.1"
 playServicesAdsLite = "23.4.0"
 firebaseDatabaseKtx = "21.0.0"
+firebaseVertexai = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version.ref = "hiltCompilerVersion" }
+androidx-hilt-lifecycle-viewmodel = { module = "androidx.hilt:hilt-lifecycle-viewmodel", version.ref = "hiltLifecycleViewmodel" }
 coil-kt-coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilComposeVersion" }
 exoplayer-core = { module = "com.google.android.exoplayer:exoplayer-core", version.ref = "exoplayerUi" }
 exoplayer-ui = { module = "com.google.android.exoplayer:exoplayer-ui", version.ref = "exoplayerUi" }
+hilt-android-gradle-plugin = { module = "com.google.dagger:hilt-android-gradle-plugin", version.ref = "hiltCompiler" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompiler" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -45,6 +53,7 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
 play-services-ads-lite = { group = "com.google.android.gms", name = "play-services-ads-lite", version.ref = "playServicesAdsLite" }
 firebase-database-ktx = { group = "com.google.firebase", name = "firebase-database-ktx", version.ref = "firebaseDatabaseKtx" }
+firebase-vertexai = { group = "com.google.firebase", name = "firebase-vertexai", version.ref = "firebaseVertexai" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

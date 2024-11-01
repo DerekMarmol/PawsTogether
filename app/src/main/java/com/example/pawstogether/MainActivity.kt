@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.annotation.OptIn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -18,6 +19,8 @@ import androidx.navigation.navArgument
 import com.example.pawstogether.model.UserRating
 import com.example.pawstogether.ui.theme.PawsTogetherTheme
 import com.example.pawstogether.ui.theme.screens.AdoptionScreen
+import com.example.pawstogether.ui.theme.screens.ChatScreen
+import com.example.pawstogether.ui.theme.screens.ChatsListScreen
 import com.example.pawstogether.ui.theme.screens.HomeScreen
 import com.example.pawstogether.ui.theme.screens.LoginScreen
 import com.example.pawstogether.ui.theme.screens.PetCareScreen
@@ -27,6 +30,7 @@ import com.example.pawstogether.ui.theme.screens.RegisterScreen
 import com.example.pawstogether.ui.theme.screens.ReportsScreen
 import com.example.pawstogether.ui.theme.screens.ServicesScreen
 import com.example.pawstogether.ui.theme.screens.VeterinaryListScreen
+import com.example.pawstogether.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -92,6 +96,32 @@ class MainActivity : ComponentActivity() {
             composable("PetCare") {
                 PetCareScreen(navController)
             }
+            composable("chats_list") {
+                val chatViewModel: ChatViewModel = viewModel()
+                ChatsListScreen(
+                    viewModel = chatViewModel,
+                    onChatClick = { userId, userName ->
+                        navController.navigate("chat/$userId/$userName")
+                    }
+                )
+            }
+            composable(
+                "chat/{userId}/{userName}",
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType },
+                    navArgument("userName") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                val userName = backStackEntry.arguments?.getString("userName") ?: ""
+                val chatViewModel: ChatViewModel = viewModel()
+                ChatScreen(
+                    viewModel = chatViewModel,
+                    otherUserId = userId,
+                    otherUserName = userName,
+                    navigateUp = { navController.navigateUp() }
+                )
+            }
             composable("veterinary_list") {
                 VeterinaryListScreen(navController) }
             composable(
@@ -104,9 +134,7 @@ class MainActivity : ComponentActivity() {
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 val serviceType = backStackEntry.arguments?.getString("serviceType") ?: ""
 
-                // Aquí deberías obtener el `userName` desde alguna fuente, por ejemplo, desde Firestore o pasándolo desde la pantalla anterior.
-                // Si lo obtienes de Firestore, tendrías que realizar una consulta asincrónica.
-                val userName = "NombreUsuario" // Aquí deberías sustituirlo con el nombre real
+                val userName = "NombreUsuario"
 
                 RatingScreen(
                     toUserId = userId,
@@ -132,7 +160,6 @@ class MainActivity : ComponentActivity() {
         db.collection("ratings")
             .add(rating)
             .addOnSuccessListener {
-                // Actualizar el promedio de calificaciones del usuario calificado
                 updateUserRating(rating.toUserId)
                 onComplete()
             }
