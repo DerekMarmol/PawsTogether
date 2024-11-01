@@ -249,7 +249,7 @@ fun PostItem(
         Text(text = post.content, style = MaterialTheme.typography.bodyLarge)
 
         post.videoUrl?.let { videoUrl ->
-            Text(text = " ", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "", style = MaterialTheme.typography.bodyMedium)
             AndroidView(factory = {
                 VideoView(it).apply {
                     setVideoURI(Uri.parse(videoUrl))
