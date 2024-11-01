@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -34,7 +35,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import java.util.UUID
-import kotlinx.coroutines.launch
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,8 +76,23 @@ fun PetCareScreen(navController: NavHostController) {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                     }
+                },
+                actions = {
+                    TextButton(onClick = {
+                        navController.navigate("veterinary_list")
+                    }) {
+                        Text("Clínicas Veterinarias")
+                    }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showCreateArticleDialog = true },
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Crear Artículo")
+            }
         },
         content = { padding ->
             Column(
@@ -86,27 +101,22 @@ fun PetCareScreen(navController: NavHostController) {
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                Button(
-                    onClick = { showCreateArticleDialog = true },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Crear Artículo")
-                }
+                Spacer(modifier = Modifier.height(10.dp))
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        // Navega a la nueva pantalla de clínicas veterinarias
-                        navController.navigate("veterinary_list")
-                    },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Ver Clínicas Veterinarias")
-                }
+                Text(
+                    text = "Publicaciones Recientes",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Divider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    thickness = 1.dp
+                )
 
-                Text(text = "Publicaciones Recientes", style = MaterialTheme.typography.headlineMedium)
                 LazyColumn {
                     items(posts) { post ->
                         PostItem(post = post, showReviews, showReviewForm, onToggleReviewVisibility = {
@@ -124,6 +134,9 @@ fun PetCareScreen(navController: NavHostController) {
         }
     )
 }
+
+
+
 
 @Composable
 fun CreateArticleDialog(onDismiss: () -> Unit) {
@@ -187,7 +200,7 @@ fun CreateArticleDialog(onDismiss: () -> Unit) {
                     onClick = { guidePickerLauncher.launch("application/pdf") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Subir Guía/Documento")
+                    Text("Subir Documento")
                 }
             }
         },
@@ -236,7 +249,7 @@ fun PostItem(
         Text(text = post.content, style = MaterialTheme.typography.bodyLarge)
 
         post.videoUrl?.let { videoUrl ->
-            Text(text = "Video:", style = MaterialTheme.typography.bodyMedium)
+            Text(text = " ", style = MaterialTheme.typography.bodyMedium)
             AndroidView(factory = {
                 VideoView(it).apply {
                     setVideoURI(Uri.parse(videoUrl))
@@ -268,7 +281,7 @@ fun PostItem(
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(guideUrl))
                 context.startActivity(intent)
             }) {
-                Text("Descargar Guía")
+                Text("Descargar Documento")
             }
         }
 
