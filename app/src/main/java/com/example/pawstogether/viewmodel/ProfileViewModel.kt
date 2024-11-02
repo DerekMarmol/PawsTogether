@@ -3,9 +3,12 @@ package com.example.pawstogether.viewmodel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ProfileViewModel : ViewModel() {
     private val _displayName = mutableStateOf("")
@@ -42,21 +45,38 @@ class ProfileViewModel : ViewModel() {
     ) {
         val currentUser = auth.currentUser
         currentUser?.uid?.let { uid ->
-            val userUpdates = mutableMapOf<String, Any>(
-                "displayName" to displayName,
-                "username" to username
-            )
+            viewModelScope.launch {
+                try {
+                    // Actualizar el perfil
+                    val userUpdates = mutableMapOf<String, Any>(
+                        "displayName" to displayName,
+                        "username" to username
+                    )
 
-            firestore.collection("users").document(uid)
-                .update(userUpdates)
-                .addOnSuccessListener {
+                    firestore.collection("users").document(uid)
+                        .update(userUpdates)
+                        .await()
+
+                    // Actualizar los chat previews existentes
+                    val chatPreviewsQuery = firestore.collectionGroup("userChats")
+                        .whereEqualTo("userId", uid)
+                        .get()
+                        .await()
+
+                    val batch = firestore.batch()
+                    for (doc in chatPreviewsQuery.documents) {
+                        batch.update(doc.reference, "userName", displayName) // Cambiado a "userName"
+                    }
+                    batch.commit().await()
+
                     _displayName.value = displayName
                     _username.value = username
                     onSuccess()
+                } catch (e: Exception) {
+                    onError("Error al actualizar perfil: ${e.message}")
                 }
-                .addOnFailureListener { exception ->
-                    onError("Error al actualizar perfil: ${exception.message}")
-                }
+            }
         }
     }
+
 }

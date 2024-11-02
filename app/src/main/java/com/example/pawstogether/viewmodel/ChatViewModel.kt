@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 class ChatViewModel : ViewModel() {
@@ -38,6 +39,18 @@ class ChatViewModel : ViewModel() {
     }
 
     @OptIn(UnstableApi::class)
+    private suspend fun getCurrentUserDisplayName(): String {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: return "Usuario"
+            val userDoc = firestore.collection("users").document(currentUserId).get().await()
+            userDoc.getString("displayName") ?: "Usuario"
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Error getting display name", e)
+            "Usuario"
+        }
+    }
+
+    @OptIn(UnstableApi::class)
     fun sendMessage(receiverId: String, receiverName: String) {
         viewModelScope.launch {
             try {
@@ -45,27 +58,26 @@ class ChatViewModel : ViewModel() {
                     Log.e("ChatViewModel", "No current user found")
                     return@launch
                 }
+                val displayName = getCurrentUserDisplayName()
                 val messageText = _messageText.value.trim()
                 if (messageText.isEmpty()) return@launch
 
-                val currentUserName = currentUser.displayName ?: "Usuario"
-                Log.d("ChatViewModel", "Current user name: $currentUserName")
+                Log.d("ChatViewModel", "Sending message to $receiverName (ID: $receiverId)")
 
                 val message = Message(
                     id = UUID.randomUUID().toString(),
                     senderId = currentUser.uid,
                     receiverId = receiverId,
                     content = messageText,
-                    senderName = currentUserName, // Aseguramos usar el nombre actual
+                    senderName = displayName,
                     timestamp = System.currentTimeMillis()
                 )
 
                 val chatId = getChatId(currentUser.uid, receiverId)
+                Log.d("ChatViewModel", "Generated chatId: $chatId")
 
-                // Batch write para asegurar que todas las operaciones se completen
                 val batch = firestore.batch()
 
-                // Documento principal del chat con nombres actualizados
                 val chatRef = firestore.collection("chats").document(chatId)
                 batch.set(
                     chatRef,
@@ -73,18 +85,13 @@ class ChatViewModel : ViewModel() {
                         "participants" to listOf(currentUser.uid, receiverId),
                         "lastMessage" to messageText,
                         "timestamp" to message.timestamp,
-                        "participantNames" to mapOf(
-                            currentUser.uid to currentUserName,
-                            receiverId to receiverName
-                        )
+                        "otherUserName" to receiverName
                     )
                 )
 
-                // Mensaje en la subcolección
                 val messageRef = chatRef.collection("messages").document(message.id)
                 batch.set(messageRef, message)
 
-                // Chat preview para el usuario actual
                 val currentUserPreviewRef = firestore.collection("chatPreviews")
                     .document(currentUser.uid)
                     .collection("userChats")
@@ -96,8 +103,7 @@ class ChatViewModel : ViewModel() {
                         "userId" to receiverId,
                         "userName" to receiverName,
                         "lastMessage" to messageText,
-                        "timestamp" to message.timestamp,
-                        "chatId" to chatId  // Agregar chatId para referencia
+                        "timestamp" to message.timestamp
                     )
                 )
 
@@ -110,21 +116,20 @@ class ChatViewModel : ViewModel() {
                     receiverPreviewRef,
                     hashMapOf(
                         "userId" to currentUser.uid,
-                        "userName" to currentUserName,
+                        "userName" to displayName, // Usar el displayName de Firestore
                         "lastMessage" to messageText,
-                        "timestamp" to message.timestamp,
-                        "chatId" to chatId
+                        "timestamp" to message.timestamp
                     )
                 )
 
                 batch.commit()
                     .addOnSuccessListener {
-                        Log.d("ChatViewModel", "Message sent successfully by: $currentUserName")
+                        Log.d("ChatViewModel", "Message and chat previews successfully saved")
                         _messageText.value = ""
                         loadChatPreviews()
                     }
                     .addOnFailureListener { e ->
-                        Log.e("ChatViewModel", "Error sending message", e)
+                        Log.e("ChatViewModel", "Error saving message and chat previews", e)
                     }
 
             } catch (e: Exception) {
@@ -221,16 +226,14 @@ class ChatViewModel : ViewModel() {
 
                         val messagesList = snapshot?.documents?.mapNotNull { doc ->
                             try {
-                                doc.toObject(Message::class.java).also { message ->
-                                    Log.d("ChatViewModel", "Parsed message: $message")
-                                }
+                                doc.toObject(Message::class.java)
                             } catch (e: Exception) {
                                 Log.e("ChatViewModel", "Error parsing message", e)
                                 null
                             }
                         } ?: emptyList()
 
-                        Log.d("ChatViewModel", "Setting messages list with ${messagesList.size} messages")
+                        Log.d("ChatViewModel", "Received ${messagesList.size} messages")
                         _messages.value = messagesList
                     }
             } catch (e: Exception) {

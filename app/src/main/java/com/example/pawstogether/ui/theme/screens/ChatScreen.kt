@@ -129,7 +129,6 @@ fun ChatScreen(
                 }
             }
 
-            // Campo de entrada de mensaje
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

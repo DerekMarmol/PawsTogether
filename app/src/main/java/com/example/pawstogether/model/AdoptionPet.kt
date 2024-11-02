@@ -9,9 +9,10 @@ data class AdoptionPet(
     val breed: String = "",
     val age: Int = 0,
     val description: String = "",
+    val imageUrl: String = "",
     val isNeutered: Boolean = false,
     val hasVaccines: Boolean = false,
-    val medicalHistoryUrl: String? = null, // Hacer nullable
-    val imageUrl: String = "",
-    val timestamp: Long = System.currentTimeMillis()
+    val medicalHistoryUrl: String? = null,
+    val status: String = "available", // Nuevo campo
+    val adopterId: String? = null     // Nuevo campo
 )
