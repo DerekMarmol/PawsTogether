@@ -153,6 +153,20 @@ class ChatViewModel : ViewModel() {
     }
 
     @OptIn(UnstableApi::class)
+    fun startServiceChat(otherUserId: String, otherUserName: String, serviceType: String) {
+        viewModelScope.launch {
+            try {
+                val currentUser = auth.currentUser ?: return@launch
+                val initialMessage = "¡Hola! Me interesa el servicio de $serviceType que ofreces. ¿Podríamos hablar sobre los detalles?"
+                _messageText.value = initialMessage
+                sendMessage(otherUserId, otherUserName)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error starting service chat", e)
+            }
+        }
+    }
+
+    @OptIn(UnstableApi::class)
     fun loadChatPreviews() {
         viewModelScope.launch {
             try {

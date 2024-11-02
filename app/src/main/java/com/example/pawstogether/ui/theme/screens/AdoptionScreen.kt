@@ -469,7 +469,6 @@ fun AdoptionPetItem(
     val db = FirebaseFirestore.getInstance()
     val storage = FirebaseStorage.getInstance()
 
-    // Dialog para seleccionar el adoptante
     if (showAdoptionDialog) {
         AdoptionCompletionDialog(
             petId = pet.id,
@@ -479,7 +478,6 @@ fun AdoptionPetItem(
         )
     }
 
-    // Dialogo de eliminación
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
