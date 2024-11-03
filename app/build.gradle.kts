@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation ("com.google.firebase:firebase-messaging-ktx")
     implementation("androidx.compose.material:material-icons-core:1.5.0")
     implementation("androidx.compose.material:material-icons-extended:1.5.0")
     implementation(platform(libs.androidx.compose.bom))
