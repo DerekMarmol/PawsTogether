@@ -14,14 +14,14 @@ data class Service(
 )
 
 data class ServiceRequest(
-    val id: String = "",  // Añadimos id para poder actualizar el documento
+    val id: String = "",
     val serviceId: String = "",
     val providerId: String = "",
     val requesterId: String = "",
     val providerName: String = "",
     val requesterName: String = "",
     val serviceType: String = "",
-    val status: String = "pending", // pending, confirmed, completed
+    val status: String = "pending",
     val timestamp: Timestamp? = null,
     val isProviderConfirmed: Boolean = false,
     val isRequesterConfirmed: Boolean = false

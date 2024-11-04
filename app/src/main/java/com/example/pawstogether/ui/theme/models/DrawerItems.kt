@@ -24,7 +24,5 @@ enum class DrawerItems(
     ADOPTION(Icons.Default.Pets, "Adopción", "adoption"),
     SERVICES(Icons.Default.Favorite, "Ofrecer Servicios", "services"),
     PET_CARE(Icons.Default.LocalHospital, "Cuidado de Mascotas", "PetCare"),
-    REVIEWS(Icons.Default.RateReview, "Reseñas", "reviews"),
-    MESSAGES(Icons.Default.Chat, "Mensajes", "chats_list"),
-
+    MESSAGES(Icons.Default.Chat, "Mensajes", "chats_list")
 }

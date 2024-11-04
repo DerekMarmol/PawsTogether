@@ -131,12 +131,13 @@ class MainActivity : ComponentActivity() {
             ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: ""
                 val serviceType = backStackEntry.arguments?.getString("serviceType") ?: ""
-                val userName = "NombreUsuario" // Aquí deberías obtener el nombre real del usuario
+
+                val userName = "NombreUsuario"
 
                 RatingScreen(
                     toUserId = userId,
                     serviceType = serviceType,
-                    userName = userName,
+                    userName = userName, // Pasa el `userName` aquí
                     onRatingSubmit = { rating ->
                         saveRatingToFirebase(rating) {
                             navController.popBackStack()
@@ -147,6 +148,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
+
         }
     }
 

@@ -102,27 +102,17 @@ fun NewPostCard(
                                 val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
 
                                 val isVideo = context.contentResolver.getType(uri)?.startsWith("video/") == true
-                                val newPost = PetPost(
-                                    id = UUID.randomUUID().toString(),
-                                    userId = currentUserId,
-                                    userName = actualUserName, // Usamos el nombre real del usuario
-                                    mediaUrl = downloadUrl,
-                                    description = newPostDescription,
-                                    isVideo = isVideo,
-                                    likes = 0,
-                                    likedBy = emptyList(),
-                                    comments = emptyList(),
-                                    timestamp = System.currentTimeMillis()
-                                )
-                                saveNewPost(newPost)
+
+                                // Solo llamamos a onNewPost con la URL y descripción
+                                // Ya no guardamos el post directamente aquí
                                 onNewPost(downloadUrl, newPostDescription)
+
                                 // Limpiar los campos después de publicar
                                 newPostUri = null
                                 newPostDescription = ""
                                 selectedFileName = null
                             } catch (e: Exception) {
                                 Log.e("NewPostCard", "Error al subir el archivo", e)
-                                // Mostrar un mensaje de error al usuario
                                 Toast.makeText(context, "Error al crear la publicación: ${e.message}", Toast.LENGTH_LONG).show()
                             } finally {
                                 isLoading = false
@@ -140,16 +130,5 @@ fun NewPostCard(
                 }
             }
         }
-    }
-}
-
-// Función auxiliar para guardar el post
-suspend fun saveNewPost(post: PetPost) {
-    try {
-        val db = FirebaseFirestore.getInstance()
-        db.collection("posts").add(post).await()
-    } catch (e: Exception) {
-        Log.e("Firestore", "Error al guardar el post", e)
-        throw e
     }
 }

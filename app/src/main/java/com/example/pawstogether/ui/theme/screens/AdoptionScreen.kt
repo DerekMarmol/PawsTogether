@@ -4,7 +4,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,7 +34,6 @@ import com.example.pawstogether.model.AdoptionPet
 import com.example.pawstogether.viewmodel.ChatViewModel
 import com.example.pawstogether.viewmodel.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
@@ -92,7 +90,7 @@ fun AdoptionScreen(
                     onSubmit = { newPet ->
                         val petWithUserInfo = newPet.copy(
                             userId = auth.currentUser?.uid ?: "",
-                            userName = viewModel.displayName.toString()
+                            userName = viewModel.displayName
                         )
 
                         db.collection("adoptionPets")
@@ -351,112 +349,6 @@ fun AddAdoptionForm(
 }
 
 @Composable
-fun AdoptionCompletionDialog(
-    petId: String,
-    currentUserId: String,
-    onDismiss: () -> Unit,
-    chatViewModel: ChatViewModel
-) {
-    var selectedUserId by remember { mutableStateOf<String?>(null) }
-    val chats by chatViewModel.chatPreviews.collectAsState()
-    val db = FirebaseFirestore.getInstance()
-
-    LaunchedEffect(Unit) {
-        Log.d("AdoptionDialog", "Cargando chats para el pet ID: $petId")
-        chatViewModel.loadChatPreviews()
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Seleccionar Adoptante") },
-        text = {
-            if (chats.isEmpty()) {
-                Text("No hay chats disponibles")
-            } else {
-                LazyColumn {
-                    items(chats) { chat ->
-                        Log.d("AdoptionDialog", "Mostrando chat con usuario: ${chat.userName}")
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    selectedUserId = chat.userId
-                                    Log.d("AdoptionDialog", "Usuario seleccionado: ${chat.userName}")
-                                }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedUserId == chat.userId,
-                                onClick = {
-                                    selectedUserId = chat.userId
-                                    Log.d("AdoptionDialog", "Usuario seleccionado (radio): ${chat.userName}")
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = chat.userName)
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    Log.d("AdoptionDialog", "Botón confirmar presionado. Usuario seleccionado: $selectedUserId")
-                    selectedUserId?.let { adopterId ->
-                        // Crear registro de adopción
-                        val adoptionRecord = hashMapOf(
-                            "petId" to petId,
-                            "adopterId" to adopterId,
-                            "offererId" to currentUserId,
-                            "adoptionDate" to FieldValue.serverTimestamp()
-                        )
-
-                        Log.d("AdoptionDialog", "Creando registro de adopción: $adoptionRecord")
-
-                        // Guardar en la colección de adopciones
-                        db.collection("adoptions")
-                            .add(adoptionRecord)
-                            .addOnSuccessListener { documentReference ->
-                                Log.d("AdoptionDialog", "Registro de adopción creado con ID: ${documentReference.id}")
-
-                                // Actualizar el estado de la mascota
-                                val updates = hashMapOf<String, Any>(
-                                    "status" to "adopted",
-                                    "adopterId" to adopterId
-                                )
-
-                                db.collection("adoptionPets")
-                                    .document(petId)
-                                    .update(updates)
-                                    .addOnSuccessListener {
-                                        Log.d("AdoptionDialog", "Mascota marcada como adoptada exitosamente")
-                                        onDismiss()
-                                    }
-                                    .addOnFailureListener { e: Exception ->
-                                        Log.e("AdoptionDialog", "Error al actualizar estado de mascota", e)
-                                    }
-                            }
-                            .addOnFailureListener { e: Exception ->
-                                Log.e("AdoptionDialog", "Error al crear registro de adopción", e)
-                            }
-                    }
-                },
-                enabled = selectedUserId != null
-            ) {
-                Text("Confirmar Adopción")
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        }
-    )
-}
-
-@Composable
 fun AdoptionPetItem(
     pet: AdoptionPet,
     navController: NavController,
@@ -469,15 +361,39 @@ fun AdoptionPetItem(
     val db = FirebaseFirestore.getInstance()
     val storage = FirebaseStorage.getInstance()
 
+    // Dialog para marcar como adoptado
     if (showAdoptionDialog) {
-        AdoptionCompletionDialog(
-            petId = pet.id,
-            currentUserId = currentUserId,
-            onDismiss = { showAdoptionDialog = false },
-            chatViewModel = chatViewModel
+        AlertDialog(
+            onDismissRequest = { showAdoptionDialog = false },
+            title = { Text("Confirmar adopción") },
+            text = { Text("¿Estás seguro de que esta mascota ha sido adoptada?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        db.collection("adoptionPets")
+                            .document(pet.id)
+                            .update("status", "adopted")
+                            .addOnSuccessListener {
+                                Log.d("AdoptionPetItem", "Mascota marcada como adoptada")
+                                showAdoptionDialog = false
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("AdoptionPetItem", "Error al marcar como adoptada", e)
+                            }
+                    }
+                ) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showAdoptionDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
+    // Dialog para eliminar
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -525,7 +441,7 @@ fun AdoptionPetItem(
         )
     }
 
-    // Dialogo de edición
+    // Formulario de edición
     if (showEditForm) {
         EditAdoptionForm(
             pet = pet,
@@ -565,7 +481,7 @@ fun AdoptionPetItem(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                // Mostrar badge de estado
+                // Badge de estado adoptado
                 if (pet.status == "adopted") {
                     Surface(
                         color = MaterialTheme.colorScheme.tertiary,
@@ -592,6 +508,7 @@ fun AdoptionPetItem(
                 }
             }
 
+            // Contenido principal de la tarjeta
             if (pet.imageUrl.isNotEmpty()) {
                 AsyncImage(
                     model = pet.imageUrl,
@@ -666,9 +583,7 @@ fun AdoptionPetItem(
             if (pet.medicalHistoryUrl?.isNotEmpty() == true) {
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = {
-                        // Aquí iría el código para ver el historial médico
-                    },
+                    onClick = { /* Implementar vista del historial médico */ },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
@@ -683,6 +598,7 @@ fun AdoptionPetItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Botones de acción
             if (currentUserId != pet.userId) {
                 if (pet.status != "adopted") {
                     Button(
@@ -771,29 +687,29 @@ fun AdoptionPetItem(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = { showAdoptionDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiary
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.Favorite,
-                            contentDescription = "Marcar como adoptado",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Marcar como adoptado")
+                    if (pet.status != "adopted") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { showAdoptionDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Favorite,
+                                contentDescription = "Marcar como adoptado",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Marcar como adoptado")
+                        }
                     }
                 }
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
